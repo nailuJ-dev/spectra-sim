@@ -1,0 +1,10 @@
+{
+  "schema_version": "spectra-sim-sionna-cir-v1",
+  "frequency_hz": 915000000.0,
+  "seed": 41,
+  "tx_position_m": [300.0,180.0,30.0],
+  "rx_position_m": [0.0,0.0,10.0],
+  "coefficients_real": [[[[[[0.002],[0.0007]]]]]],
+  "coefficients_imag": [[[[[[0.0],[0.0004]]]]]],
+  "delays_s": [[[[[0.00000117,0.00000152]]]]]
+}

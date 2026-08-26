@@ -1,0 +1,30 @@
+[package]
+name = "spectra-sim"
+version = "0.1.1"
+edition = "2021"
+rust-version = "1.85"
+license = "Apache-2.0 OR MIT"
+description = "Deterministic physics-based RF, radar and 5G-ISAC simulation toolkit"
+repository = "https://github.com/nailuJ-dev/spectra-sim"
+keywords = ["rf", "radar", "isac", "simulation", "digital-twin"]
+categories = ["simulation", "science"]
+
+[lib]
+name = "spectra_sim"
+path = "src/lib.rs"
+
+[[bin]]
+name = "spectra-sim"
+path = "src/bin/spectra-sim.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

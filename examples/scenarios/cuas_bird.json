@@ -1,0 +1,114 @@
+{
+  "schema_version": "spectra-sim-scenario-v1",
+  "seed": 777001,
+  "timestamp_ms": 21000,
+  "origin": {
+    "latitude_deg": 48.1173,
+    "longitude_deg": -1.6778,
+    "altitude_m": 35.0
+  },
+  "environment": {
+    "temperature_k": 288.0,
+    "ground_reflection_coefficient": -0.55,
+    "extra_loss_db": 1.5
+  },
+  "propagation": {
+    "kind": "two_ray"
+  },
+  "emitters": [],
+  "receivers": [
+    {
+      "id": "mimo-site-01",
+      "sample_rate_hz": 2000000.0,
+      "noise_figure_db": 5.0,
+      "adc_bits": 12,
+      "full_scale_v": 1.0,
+      "oscillator_ppm": 0.5,
+      "phase_noise_rad_std": 0.0005,
+      "iq_gain_imbalance_db": 0.1,
+      "iq_phase_imbalance_deg": 0.2,
+      "agc_target_rms": 0.25,
+      "antenna": {
+        "gain_dbi": 8.0,
+        "polarization_loss_db": 0.5,
+        "cable_loss_db": 1.0
+      },
+      "state": {
+        "position_enu_m": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 10.0
+        },
+        "velocity_enu_mps": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "roll_deg": 0.0,
+        "pitch_deg": 0.0,
+        "yaw_deg": 0.0
+      }
+    }
+  ],
+  "targets": [
+    {
+      "id": "cuas_bird",
+      "kind": "bird",
+      "state": {
+        "position_enu_m": {
+          "x": 140.0,
+          "y": 120.0,
+          "z": 60.0
+        },
+        "velocity_enu_mps": {
+          "x": 5.0,
+          "y": 8.0,
+          "z": 0.5
+        },
+        "roll_deg": 3.0,
+        "pitch_deg": -2.0,
+        "yaw_deg": 28.0
+      },
+      "rcs_m2": 0.015,
+      "rotor_radius_m": 0.0,
+      "rotor_rpm": 0.0,
+      "rotor_count": 0,
+      "rf_tx_power_dbm": null,
+      "rf_burstiness": 0.0,
+      "angular_rate_dps": 13.0,
+      "cooperative_identity": null,
+      "rf_center_frequency_hz": null,
+      "rf_bandwidth_hz": null
+    }
+  ],
+  "sigint_job": null,
+  "cuas_job": {
+    "sensor_id": "mimo-site-01",
+    "target_id": "cuas_bird",
+    "radar": {
+      "carrier_frequency_hz": 3500000000.0,
+      "bandwidth_hz": 100000000.0,
+      "tx_power_dbm": 46.0,
+      "tx_gain_dbi": 24.0,
+      "rx_gain_dbi": 24.0,
+      "noise_figure_db": 5.0,
+      "system_loss_db": 4.0,
+      "coherent_time_s": 0.02,
+      "array_elements": 64,
+      "element_spacing_lambda": 0.5
+    },
+    "isac": {
+      "carrier_frequency_hz": 3500000000.0,
+      "bandwidth_hz": 100000000.0,
+      "subcarrier_spacing_hz": 30000.0,
+      "symbols": 280,
+      "array_elements": 64,
+      "element_spacing_lambda": 0.5,
+      "tx_power_dbm": 46.0,
+      "tx_gain_dbi": 24.0,
+      "rx_gain_dbi": 24.0,
+      "noise_figure_db": 5.0,
+      "system_loss_db": 4.0
+    }
+  }
+}

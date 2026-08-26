@@ -1,0 +1,7 @@
+{
+  "schema_version": "spectra-gazebo-state-v1",
+  "entities": [
+    {"id":"mimo-site-01","position_enu_m":[0,0,10],"velocity_enu_mps":[0,0,0],"roll_deg":0,"pitch_deg":0,"yaw_deg":0},
+    {"id":"drone-01","position_enu_m":[180,130,85],"velocity_enu_mps":[4,12,1],"roll_deg":3,"pitch_deg":-2,"yaw_deg":28}
+  ]
+}

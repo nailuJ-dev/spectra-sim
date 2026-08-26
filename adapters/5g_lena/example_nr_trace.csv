@@ -1,0 +1,2 @@
+timestamp_ms,carrier_frequency_hz,bandwidth_hz,subcarrier_spacing_hz,symbols,array_elements,element_spacing_lambda,tx_power_dbm,tx_gain_dbi,rx_gain_dbi,noise_figure_db,system_loss_db
+21000,3500000000,100000000,30000,280,64,0.5,46,24,24,5,4

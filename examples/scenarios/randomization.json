@@ -1,0 +1,26 @@
+{
+  "tx_power_delta_db": {
+    "min": -1.5,
+    "max": 1.5
+  },
+  "receiver_noise_figure_delta_db": {
+    "min": -0.5,
+    "max": 1.0
+  },
+  "position_jitter_m": {
+    "min": -2.0,
+    "max": 2.0
+  },
+  "velocity_jitter_mps": {
+    "min": -0.5,
+    "max": 0.5
+  },
+  "rcs_scale": {
+    "min": 0.65,
+    "max": 1.45
+  },
+  "temperature_delta_k": {
+    "min": -8.0,
+    "max": 8.0
+  }
+}
