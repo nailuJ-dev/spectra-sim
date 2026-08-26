@@ -11,7 +11,7 @@ jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.85.0
         with:
           components: rustfmt, clippy
@@ -26,7 +26,7 @@ jobs:
   python-adapters:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: python3 -m pip install --disable-pip-version-check --no-cache-dir "numpy>=2.0,<3"
       - run: python3 -m py_compile adapters/gazebo/state_snapshot_to_scenario.py adapters/sionna_rt/export_cir.py adapters/sionna_rt/simulate_iq_from_cir.py adapters/5g_lena/trace_to_isac_config.py tools/reference_check.py
       - run: python3 adapters/gazebo/state_snapshot_to_scenario.py --scenario examples/scenarios/cuas_drone_isac.json --snapshot adapters/gazebo/example_snapshot.json --out /tmp/gazebo_scenario.json
