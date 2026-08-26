@@ -29,20 +29,33 @@ impl Vec3 {
         }
     }
 
-    pub fn add(self, other: Self) -> Self {
-        Self { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
+    pub fn add_vec(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+        }
     }
 
-    pub fn sub(self, other: Self) -> Self {
-        Self { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
+    pub fn sub_vec(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+        }
     }
 
     pub fn scale(self, scalar: f64) -> Self {
-        Self { x: self.x * scalar, y: self.y * scalar, z: self.z * scalar }
+        Self {
+            x: self.x * scalar,
+            y: self.y * scalar,
+            z: self.z * scalar,
+        }
     }
 
     pub fn dot(self, other: Self) -> f64 {
-        self.x.mul_add(other.x, self.y.mul_add(other.y, self.z * other.z))
+        self.x
+            .mul_add(other.x, self.y.mul_add(other.y, self.z * other.z))
     }
 
     pub fn norm(self) -> f64 {
@@ -50,13 +63,15 @@ impl Vec3 {
     }
 
     pub fn distance(self, other: Self) -> f64 {
-        self.sub(other).norm()
+        self.sub_vec(other).norm()
     }
 
     pub fn normalized(self) -> Result<Self> {
         let norm = self.norm();
         if norm <= 1e-12 {
-            return Err(SimError::InvalidArgument("cannot normalize a near-zero vector".into()));
+            return Err(SimError::InvalidArgument(
+                "cannot normalize a near-zero vector".into(),
+            ));
         }
         Ok(self.scale(1.0 / norm))
     }
@@ -73,14 +88,20 @@ impl Complex64 {
 
     pub fn from_polar(amplitude: f64, phase_rad: f64) -> Self {
         let (sin, cos) = phase_rad.sin_cos();
-        Self { re: amplitude * cos, im: amplitude * sin }
+        Self {
+            re: amplitude * cos,
+            im: amplitude * sin,
+        }
     }
 
-    pub fn add(self, other: Self) -> Self {
-        Self { re: self.re + other.re, im: self.im + other.im }
+    pub fn add_complex(self, other: Self) -> Self {
+        Self {
+            re: self.re + other.re,
+            im: self.im + other.im,
+        }
     }
 
-    pub fn mul(self, other: Self) -> Self {
+    pub fn mul_complex(self, other: Self) -> Self {
         Self {
             re: self.re.mul_add(other.re, -(self.im * other.im)),
             im: self.re.mul_add(other.im, self.im * other.re),
@@ -88,7 +109,10 @@ impl Complex64 {
     }
 
     pub fn scale(self, scalar: f64) -> Self {
-        Self { re: self.re * scalar, im: self.im * scalar }
+        Self {
+            re: self.re * scalar,
+            im: self.im * scalar,
+        }
     }
 
     pub fn magnitude_squared(self) -> f64 {
@@ -100,13 +124,23 @@ impl Complex64 {
     }
 }
 
-pub fn db_to_linear(db: f64) -> f64 { 10.0_f64.powf(db / 10.0) }
-pub fn linear_to_db(value: f64) -> f64 { 10.0 * value.max(1e-300).log10() }
-pub fn dbm_to_watts(dbm: f64) -> f64 { 10.0_f64.powf((dbm - 30.0) / 10.0) }
-pub fn watts_to_dbm(watts: f64) -> f64 { 10.0 * watts.max(1e-300).log10() + 30.0 }
+pub fn db_to_linear(db: f64) -> f64 {
+    10.0_f64.powf(db / 10.0)
+}
+pub fn linear_to_db(value: f64) -> f64 {
+    10.0 * value.max(1e-300).log10()
+}
+pub fn dbm_to_watts(dbm: f64) -> f64 {
+    10.0_f64.powf((dbm - 30.0) / 10.0)
+}
+pub fn watts_to_dbm(watts: f64) -> f64 {
+    10.0 * watts.max(1e-300).log10() + 30.0
+}
 pub fn wavelength_m(frequency_hz: f64) -> Result<f64> {
     if !frequency_hz.is_finite() || frequency_hz <= 0.0 {
-        return Err(SimError::InvalidArgument("frequency_hz must be finite and positive".into()));
+        return Err(SimError::InvalidArgument(
+            "frequency_hz must be finite and positive".into(),
+        ));
     }
     Ok(SPEED_OF_LIGHT_MPS / frequency_hz)
 }

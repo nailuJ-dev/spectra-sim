@@ -1,7 +1,8 @@
 use spectra_sim::{run_cuas, run_sigint, Scenario};
 
 fn load(path: &str) -> Scenario {
-    serde_json::from_slice(&std::fs::read(path).unwrap_or_default()).unwrap_or_else(|_| panic!("fixture must deserialize"))
+    serde_json::from_slice(&std::fs::read(path).unwrap_or_default())
+        .unwrap_or_else(|_| panic!("fixture must deserialize"))
 }
 
 #[test]

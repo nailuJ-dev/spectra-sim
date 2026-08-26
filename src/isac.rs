@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{simulate_monostatic_radar, Environment, IsacConfig, KinematicState, RadarConfig, RadarMeasurement, Result, Target, SPEED_OF_LIGHT_MPS, wavelength_m};
+use crate::{
+    simulate_monostatic_radar, wavelength_m, Environment, IsacConfig, KinematicState, RadarConfig,
+    RadarMeasurement, Result, Target, SPEED_OF_LIGHT_MPS,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -15,7 +18,12 @@ pub struct IsacMeasurement {
     pub angle_resolution_deg: f64,
 }
 
-pub fn simulate_isac(sensor: KinematicState, target: &Target, config: &IsacConfig, environment: Environment) -> Result<IsacMeasurement> {
+pub fn simulate_isac(
+    sensor: KinematicState,
+    target: &Target,
+    config: &IsacConfig,
+    environment: Environment,
+) -> Result<IsacMeasurement> {
     config.validate()?;
     let symbol_duration = 1.0 / config.subcarrier_spacing_hz;
     let coherent_time = symbol_duration * config.symbols as f64;
@@ -47,14 +55,34 @@ pub fn simulate_isac(sensor: KinematicState, target: &Target, config: &IsacConfi
     })
 }
 
-pub fn cuas_reference_features(measurement: &RadarMeasurement, rf_energy: f32, burstiness: f32, angular_rate_dps: f32) -> Vec<f32> {
+pub fn cuas_reference_features(
+    measurement: &RadarMeasurement,
+    rf_energy: f32,
+    burstiness: f32,
+    angular_rate_dps: f32,
+) -> Vec<f32> {
     let az = measurement.azimuth_deg.to_radians();
     let el = measurement.elevation_deg.to_radians();
     let range_norm = (measurement.range_m.ln_1p() / 100_000.0_f64.ln_1p()).clamp(0.0, 1.0) as f32;
     let velocity_norm = (measurement.radial_velocity_mps / 200.0).clamp(-2.0, 2.0) as f32;
     let snr_norm = (measurement.snr_db / 40.0).clamp(-2.0, 2.0);
-    let doppler_norm = (f64::from(measurement.doppler_spread_hz).ln_1p() / 1_000.0_f64.ln_1p()).clamp(0.0, 1.0) as f32;
+    let doppler_norm = (f64::from(measurement.doppler_spread_hz).ln_1p() / 1_000.0_f64.ln_1p())
+        .clamp(0.0, 1.0) as f32;
     let rcs_norm = (measurement.rcs_m2.ln_1p() / 100.0_f64.ln_1p()).clamp(0.0, 1.0) as f32;
     let angular_rate_norm = (angular_rate_dps / 180.0).clamp(-2.0, 2.0);
-    vec![range_norm, velocity_norm, az.sin() as f32, az.cos() as f32, el.sin() as f32, el.cos() as f32, snr_norm, doppler_norm, measurement.micro_doppler_index, rcs_norm, rf_energy.clamp(0.0, 1.0), burstiness.clamp(0.0, 1.0), angular_rate_norm]
+    vec![
+        range_norm,
+        velocity_norm,
+        az.sin() as f32,
+        az.cos() as f32,
+        el.sin() as f32,
+        el.cos() as f32,
+        snr_norm,
+        doppler_norm,
+        measurement.micro_doppler_index,
+        rcs_norm,
+        rf_energy.clamp(0.0, 1.0),
+        burstiness.clamp(0.0, 1.0),
+        angular_rate_norm,
+    ]
 }

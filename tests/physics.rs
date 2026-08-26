@@ -1,4 +1,6 @@
-use spectra_sim::{free_space_path_loss_db, thermal_noise_dbm, one_way_doppler_hz, SPEED_OF_LIGHT_MPS};
+use spectra_sim::{
+    free_space_path_loss_db, one_way_doppler_hz, thermal_noise_dbm, SPEED_OF_LIGHT_MPS,
+};
 
 #[test]
 fn fspl_at_one_meter_matches_closed_form() {

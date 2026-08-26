@@ -20,12 +20,21 @@ pub fn canonical_sha256<T: Serialize>(value: &T) -> Result<String> {
 }
 
 pub fn replay_manifest<T: Serialize>(scenario: &Scenario, output: &T) -> Result<ReplayManifest> {
-    Ok(ReplayManifest { schema_version: "spectra-sim-replay-v1".into(), seed: scenario.seed, scenario_sha256: canonical_sha256(scenario)?, output_sha256: canonical_sha256(output)?, simulator_version: env!("CARGO_PKG_VERSION").into() })
+    Ok(ReplayManifest {
+        schema_version: "spectra-sim-replay-v1".into(),
+        seed: scenario.seed,
+        scenario_sha256: canonical_sha256(scenario)?,
+        output_sha256: canonical_sha256(output)?,
+        simulator_version: env!("CARGO_PKG_VERSION").into(),
+    })
 }
 
 fn hex_lower(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
-    for byte in bytes { out.push(HEX[(byte >> 4) as usize] as char); out.push(HEX[(byte & 0x0f) as usize] as char); }
+    for byte in bytes {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
     out
 }
