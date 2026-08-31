@@ -1,85 +1,228 @@
 # spectra-sim
 
-`spectra-sim` is a standalone, deterministic physics-based simulator for RF/SIGINT, monostatic radar and 5G/NR-style integrated sensing and communication (ISAC) experiments.
+**Physics-based RF sensing simulation for terrestrial, maritime, underwater and space environments.**
 
-It is intentionally independent from any downstream ML SDK. Its integration surface is versioned JSON only.
+`spectra-sim` is an open-source simulation framework for generating realistic RF, radar and sensing scenarios.
 
-## What is implemented
+The project is designed for engineers and researchers working on wireless systems, RF machine learning, radar, SIGINT, 5G/ISAC, satellite communications and electromagnetic sensing.
 
-The built-in Rust engine provides:
+Its goal is simple: provide reproducible RF environments that are realistic enough to develop, benchmark and stress-test sensing algorithms before field deployment.
 
-- free-space path loss (Friis);
-- two-ray ground reflection;
-- deterministic Rician fading and log-normal shadowing;
-- thermal noise using `kTB` plus receiver noise figure;
-- one-way and monostatic Doppler;
-- transmitter / receiver antenna gains and losses;
-- oscillator frequency error, phase noise, I/Q imbalance, AGC and ADC quantization;
-- CW, pulse-train and compact OFDM waveform generation;
-- monostatic radar equation;
-- range / radial velocity / azimuth / elevation ground truth;
-- rotor micro-Doppler approximation;
-- radar range, velocity and array-angle resolution estimates;
-- 5G/OFDM MIMO-ISAC sensing observables;
-- deterministic domain randomization;
-- replay manifests with SHA-256 digests;
-- exporters matching the public SIGINT I/Q and C-UAS Golden Path JSON contracts.
+## What it does
+
+`spectra-sim` models the physical environment between emitters, propagation media, sensors and receivers.
+
+Core capabilities include:
+
+* RF signal and I/Q scenario generation
+* radar and RF sensing simulation
+* 5G / ISAC scenarios
+* multipath and propagation effects
+* deterministic simulation and replay
+* synthetic truth generation
+* configurable receiver and channel impairments
+* scenario randomization and Monte Carlo workflows
+* structured JSON export for external ML and sensing pipelines
+
+## Multi-medium RF physics
+
+### Terrestrial
+
+Model wireless and radar propagation through configurable environments with path loss, multipath, channel effects and receiver impairments.
+
+### Underwater and maritime
+
+The v0.2 physics layer introduces RF propagation through conductive and dielectric media.
+
+Supported concepts include:
+
+* freshwater and seawater
+* temperature and salinity dependent electrical properties
+* complex permittivity
+* conductivity
+* attenuation and phase constants
+* skin depth
+* phase velocity
+* lossy-medium propagation
+* stratified water columns
+* air/water and water/seabed interfaces
+* complex Fresnel TE/TM reflection and transmission
+* seabed and material layers
+
+This makes it possible to model scenarios such as:
+
+```text
+air
+──────────── sea surface
+seawater
+──────────── thermocline
+deep water
+──────────── seabed
+```
+
+without reducing underwater propagation to a simple free-space path-loss correction.
+
+### Space and NTN
+
+`spectra-sim` is designed to consume professional orbital state information rather than relying on simplified satellite trajectories.
+
+The space RF layer supports the architecture required for:
+
+* TLE / OMM propagation through SGP4-compatible backends
+* CCSDS ephemerides
+* authoritative position and velocity states
+* orbital reference frames
+* precise link geometry
+* iterative light-time computation
+* slant range
+* line-of-sight range rate
+* Doppler and Doppler rate
+* Earth-space RF links
+* antenna pointing and geometry
+
+The architecture is intended to support high-precision astrodynamics backends such as Orekit without coupling the Rust core to a specific external runtime.
+
+## Scientific validity
+
+A simulator should not silently produce numbers outside the validity range of its physical models.
+
+`spectra-sim` therefore introduces an explicit physics validity layer.
+
+Models can expose:
+
+```text
+VALIDATED
+VALIDATED_WITH_WARNINGS
+EXTRAPOLATED
+EXPERIMENTAL
+INVALID
+```
+
+along with information about:
+
+* physical model used
+* reference
+* validity range
+* missing environmental data
+* extrapolation
+* model maturity
+
+The long-term objective is to make simulation provenance as important as the simulated data itself.
+
+## Example applications
+
+`spectra-sim` can be used to develop and evaluate:
+
+* RF signal classifiers
+* specific emitter identification
+* spectrum monitoring
+* interference detection
+* radar perception
+* C-UAS sensing
+* maritime sensing
+* satellite communication algorithms
+* NTN signal processing
+* RF anomaly detection
+* synthetic datasets for RF ML
+* sim-to-real evaluation pipelines
+
+## Architecture
+
+```text
+Scenario
+   ↓
+World / geometry
+   ↓
+Propagation media
+   ↓
+Interfaces and multipath
+   ↓
+Antenna
+   ↓
+Receiver
+   ↓
+I/Q + sensor observations
+   ↓
+Truth + metadata + validity
+```
+
+The simulator is deliberately modular so higher-fidelity propagation or astrodynamics backends can be integrated without changing downstream sensing APIs.
 
 ## Quick start
 
 ```bash
-cargo run --release -- sigint examples/scenarios/sigint_urban.json --out artifacts/sigint
-cargo run --release -- cuas examples/scenarios/cuas_drone_isac.json --out artifacts/cuas
+git clone https://github.com/nailuJ-dev/spectra-sim.git
+cd spectra-sim
+
+cargo build --release
+cargo test --all-targets --all-features
 ```
 
-Or:
+Explore the CLI:
 
 ```bash
-./scripts/run_golden_path.sh
+cargo run --bin spectra-sim -- --help
 ```
 
-The SIGINT run writes:
+Example scenarios are available in the repository.
 
-```text
-artifacts/sigint/
-├── iq_capture.json
-├── truth.json
-└── replay_manifest.json
-```
+## Design principles
 
-The C-UAS run writes:
+`spectra-sim` prioritizes:
 
-```text
-artifacts/cuas/
-├── radar_truth.json
-├── cuas_scenario.json
-├── isac_truth.json
-├── cuas_isac_scenario.json
-└── replay_manifest.json
-```
+* physics over visual plausibility
+* reproducibility over hidden randomness
+* explicit uncertainty over false precision
+* composable models over monolithic simulation
+* documented validity over silent approximation
+* interoperability over vendor lock-in
 
-`iq_capture.json` can be passed to a compatible raw-I/Q Golden Path. `cuas_scenario.json` and `cuas_isac_scenario.json` match the public recorded-sensing / recorded-ISAC Golden Path contracts.
+It is not intended to pretend that analytical models replace full-wave solvers or field measurements.
 
-## Fidelity ladder
+Where higher fidelity is required, the architecture is designed to connect to specialized simulation backends.
 
-| Level | Backend | Purpose |
-| --- | --- | --- |
-| L0 | Rust analytical engine | CI, regression, deterministic replay |
-| L1 | Rust stochastic + domain randomization | dataset generation and robustness training |
-| L2 | Gazebo + Sionna RT + optional NR trace bridge | pre-hardware digital-twin studies |
+## Open-source boundary
 
-The optional adapters are deliberately out-of-process. The core simulator never requires Gazebo, Sionna RT, ns-3 / 5G-LENA, a GPU, or a network service.
+This repository focuses on physical simulation and reproducible sensing data.
 
-## Important limitation
+It deliberately does not contain proprietary persistent electromagnetic world models, global emitter identity systems, customer-specific calibration corpora or private learned propagation models.
 
-Physics-based simulation is not field validation. Material properties, antenna patterns, clutter, RF front-end behavior, target RCS and micro-Doppler models must ultimately be calibrated against measurements. The included scenarios are reference fixtures, not operational accuracy evidence.
+## Contributing
 
-See `docs/PHYSICS.md`, `docs/HIGH_FIDELITY_BACKENDS.md`, `docs/SDK_INTEGRATION.md` and `docs/VALIDATION.md`.
+Contributions are welcome, especially around:
 
-## Compatibility
+* RF propagation models
+* underwater electromagnetics
+* atmospheric and ionospheric propagation
+* orbital mechanics integration
+* radar and ISAC
+* reference datasets
+* validation against measurements
+* numerical benchmarks
 
-| spectra-sim | SIGINT SDK | C-UAS SDK |
-|---|---|---|
-| 0.1.1 | 0.4.1 | 0.5.1 |
+If you find a physical assumption that can be improved, open an issue with a reference, measurement or reproducible test case.
 
-Integration uses only public JSON files.
+## Support the project
+
+If `spectra-sim` is useful to your work:
+
+* star the repository
+* use it in experiments and prototypes
+* report unrealistic behavior
+* contribute reference scenarios
+* cite or link the project when publishing results
+* share it with RF, radar and wireless engineers
+
+Adoption and external validation are the most valuable forms of support at this stage.
+
+## About
+
+`spectra-sim` is developed as part of the open-source RF and electromagnetic sensing work initiated by **Anderion Systems**.
+
+The broader objective is to improve the software infrastructure available for machines that need to observe, model and understand the electromagnetic environment.
+
+**Anderion Systems** — https://anderion-systems.com
+
+## License
+
+See the repository `LICENSE` file.

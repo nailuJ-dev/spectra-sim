@@ -1,3 +1,10 @@
+## 0.2.0
+
+- Added scientific validity ledger.
+- Added Meissner-Wentz sea-water dielectric model and lossy Maxwell propagation.
+- Added complex Fresnel interfaces and stratified medium propagation.
+- Added authoritative ephemeris interpolation and light-time corrected space RF geometry.
+
 # Changelog
 
 ## 0.1.1
