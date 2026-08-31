@@ -1,6 +1,7 @@
+use crate::math::Complex64;
 use crate::{
-    db_to_linear, linear_to_db, wavelength_m, Complex64, DeterministicRng, Environment,
-    KinematicState, PropagationModel, Result, SimError, Vec3, BOLTZMANN_J_PER_K,
+    db_to_linear, linear_to_db, wavelength_m, DeterministicRng, Environment, KinematicState,
+    PropagationModel, Result, SimError, Vec3, BOLTZMANN_J_PER_K,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]

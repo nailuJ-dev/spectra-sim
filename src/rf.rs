@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::math::Complex64;
 use crate::{
-    db_to_linear, link_budget, thermal_noise_dbm, Complex64, DeterministicRng, Emitter,
-    Environment, PropagationModel, Receiver, Result, SimError, Waveform,
+    db_to_linear, link_budget, thermal_noise_dbm, DeterministicRng, Emitter, Environment,
+    PropagationModel, Receiver, Result, SimError, Waveform,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

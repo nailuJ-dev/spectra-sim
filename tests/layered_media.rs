@@ -1,11 +1,17 @@
 use spectra_sim::{
-    Complex64, MaterialProperties, MediumLayer, MediumStack, Polarization,
-    fresnel_coefficients, propagate_stack, WaterPermittivityModel, WaterState, water_properties,
-    ValidityLedger,
+    fresnel_coefficients, propagate_stack, water_properties, MaterialProperties, MediumLayer,
+    MediumStack, Polarization, ValidityLedger, WaterPermittivityModel, WaterState,
 };
 
+use spectra_sim::materials::Complex64;
+
 fn air() -> MaterialProperties {
-    MaterialProperties { relative_permittivity: Complex64::new(1.0006, 0.0), relative_permeability: 1.0, conductivity_s_per_m: 0.0, validity: ValidityLedger::default() }
+    MaterialProperties {
+        relative_permittivity: Complex64::new(1.0006, 0.0),
+        relative_permeability: 1.0,
+        conductivity_s_per_m: 0.0,
+        validity: ValidityLedger::default(),
+    }
 }
 
 #[test]
@@ -17,11 +23,17 @@ fn identical_media_have_negligible_reflection() {
 
 #[test]
 fn a_seawater_layer_reduces_complex_amplitude() {
-    let sea = water_properties(100_000.0, &WaterState::new(15.0, 35.0).unwrap(), WaterPermittivityModel::ConductiveLowFrequency).unwrap();
+    let sea = water_properties(
+        100_000.0,
+        &WaterState::new(15.0, 35.0).unwrap(),
+        WaterPermittivityModel::ConductiveLowFrequency,
+    )
+    .unwrap();
     let stack = MediumStack::new(vec![
         MediumLayer::new(Some(0.0), air()).unwrap(),
         MediumLayer::new(Some(5.0), sea).unwrap(),
-    ]).unwrap();
+    ])
+    .unwrap();
     let out = propagate_stack(&stack, 100_000.0, 0.0, Polarization::Te).unwrap();
     assert!(out.complex_gain.abs() < 1.0);
     assert!(out.attenuation_db > 0.0);

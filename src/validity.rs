@@ -36,19 +36,35 @@ pub struct ValidityIssue {
 
 impl ValidityIssue {
     pub fn warning(component: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { component: component.into(), message: message.into(), severity: ValiditySeverity::Warning }
+        Self {
+            component: component.into(),
+            message: message.into(),
+            severity: ValiditySeverity::Warning,
+        }
     }
 
     pub fn extrapolation(component: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { component: component.into(), message: message.into(), severity: ValiditySeverity::Extrapolation }
+        Self {
+            component: component.into(),
+            message: message.into(),
+            severity: ValiditySeverity::Extrapolation,
+        }
     }
 
     pub fn experimental(component: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { component: component.into(), message: message.into(), severity: ValiditySeverity::Experimental }
+        Self {
+            component: component.into(),
+            message: message.into(),
+            severity: ValiditySeverity::Experimental,
+        }
     }
 
     pub fn invalid(component: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { component: component.into(), message: message.into(), severity: ValiditySeverity::Invalid }
+        Self {
+            component: component.into(),
+            message: message.into(),
+            severity: ValiditySeverity::Invalid,
+        }
     }
 }
 
@@ -70,10 +86,16 @@ pub struct ValidityLedger {
 }
 
 impl ValidityLedger {
-    pub fn models(&self) -> &[ModelMetadata] { &self.models }
-    pub fn issues(&self) -> &[ValidityIssue] { &self.issues }
+    pub fn models(&self) -> &[ModelMetadata] {
+        &self.models
+    }
+    pub fn issues(&self) -> &[ValidityIssue] {
+        &self.issues
+    }
 
-    pub fn push(&mut self, issue: ValidityIssue) { self.issues.push(issue); }
+    pub fn push(&mut self, issue: ValidityIssue) {
+        self.issues.push(issue);
+    }
 
     pub fn record_model(
         &mut self,
@@ -83,25 +105,38 @@ impl ValidityLedger {
         maturity: ModelMaturity,
     ) {
         if maturity == ModelMaturity::ExperimentalResearch {
-            self.issues.push(ValidityIssue::experimental("model", "experimental research model enabled"));
+            self.issues.push(ValidityIssue::experimental(
+                "model",
+                "experimental research model enabled",
+            ));
         } else if maturity == ModelMaturity::ValidatedWithWarnings {
-            self.issues.push(ValidityIssue::warning("model", "model enabled with documented caveats"));
+            self.issues.push(ValidityIssue::warning(
+                "model",
+                "model enabled with documented caveats",
+            ));
         }
         self.models.push(ModelMetadata {
-            name: name.into(), version: version.into(), reference: reference.into(), maturity,
-            valid_frequency_hz: None, valid_temperature_c: None, valid_salinity_psu: None,
+            name: name.into(),
+            version: version.into(),
+            reference: reference.into(),
+            maturity,
+            valid_frequency_hz: None,
+            valid_temperature_c: None,
+            valid_salinity_psu: None,
         });
     }
 
     pub fn quality(&self) -> PhysicsQuality {
-        self.issues.iter().fold(PhysicsQuality::Validated, |quality, issue| {
-            let next = match issue.severity {
-                ValiditySeverity::Warning => PhysicsQuality::ValidatedWithWarnings,
-                ValiditySeverity::Extrapolation => PhysicsQuality::Extrapolated,
-                ValiditySeverity::Experimental => PhysicsQuality::Experimental,
-                ValiditySeverity::Invalid => PhysicsQuality::Invalid,
-            };
-            quality.max(next)
-        })
+        self.issues
+            .iter()
+            .fold(PhysicsQuality::Validated, |quality, issue| {
+                let next = match issue.severity {
+                    ValiditySeverity::Warning => PhysicsQuality::ValidatedWithWarnings,
+                    ValiditySeverity::Extrapolation => PhysicsQuality::Extrapolated,
+                    ValiditySeverity::Experimental => PhysicsQuality::Experimental,
+                    ValiditySeverity::Invalid => PhysicsQuality::Invalid,
+                };
+                quality.max(next)
+            })
     }
 }

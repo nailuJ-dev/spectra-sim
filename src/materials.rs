@@ -1,3 +1,5 @@
+use std::ops::{Add, Div, Mul, Sub};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{Result, SimError, ValidityLedger};
@@ -12,22 +14,20 @@ pub struct Complex64 {
 }
 
 impl Complex64 {
-    pub const fn new(re: f64, im: f64) -> Self { Self { re, im } }
-    pub fn abs(self) -> f64 { self.re.hypot(self.im) }
-    pub fn arg(self) -> f64 { self.im.atan2(self.re) }
-    pub fn conj(self) -> Self { Self::new(self.re, -self.im) }
-    pub fn add(self, rhs: Self) -> Self { Self::new(self.re + rhs.re, self.im + rhs.im) }
-    pub fn sub(self, rhs: Self) -> Self { Self::new(self.re - rhs.re, self.im - rhs.im) }
-    pub fn mul(self, rhs: Self) -> Self {
-        Self::new(self.re.mul_add(rhs.re, -(self.im * rhs.im)), self.re.mul_add(rhs.im, self.im * rhs.re))
+    pub const fn new(re: f64, im: f64) -> Self {
+        Self { re, im }
     }
-    pub fn scale(self, value: f64) -> Self { Self::new(self.re * value, self.im * value) }
-    pub fn div(self, rhs: Self) -> Self {
-        let denominator = rhs.re.mul_add(rhs.re, rhs.im * rhs.im);
-        Self::new(
-            (self.re.mul_add(rhs.re, self.im * rhs.im)) / denominator,
-            (self.im.mul_add(rhs.re, -(self.re * rhs.im))) / denominator,
-        )
+    pub fn abs(self) -> f64 {
+        self.re.hypot(self.im)
+    }
+    pub fn arg(self) -> f64 {
+        self.im.atan2(self.re)
+    }
+    pub fn conj(self) -> Self {
+        Self::new(self.re, -self.im)
+    }
+    pub fn scale(self, value: f64) -> Self {
+        Self::new(self.re * value, self.im * value)
     }
     pub fn sqrt(self) -> Self {
         let magnitude = self.abs();
@@ -38,6 +38,41 @@ impl Complex64 {
     pub fn exp(self) -> Self {
         let amplitude = self.re.exp();
         Self::new(amplitude * self.im.cos(), amplitude * self.im.sin())
+    }
+}
+
+impl Add for Complex64 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.re + rhs.re, self.im + rhs.im)
+    }
+}
+
+impl Sub for Complex64 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.re - rhs.re, self.im - rhs.im)
+    }
+}
+
+impl Mul for Complex64 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::new(
+            self.re.mul_add(rhs.re, -(self.im * rhs.im)),
+            self.re.mul_add(rhs.im, self.im * rhs.re),
+        )
+    }
+}
+
+impl Div for Complex64 {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self::Output {
+        let denominator = rhs.re.mul_add(rhs.re, rhs.im * rhs.im);
+        Self::new(
+            self.re.mul_add(rhs.re, self.im * rhs.im) / denominator,
+            self.im.mul_add(rhs.re, -(self.re * rhs.im)) / denominator,
+        )
     }
 }
 
@@ -59,7 +94,9 @@ impl MaterialProperties {
             || self.relative_permeability <= 0.0
             || self.conductivity_s_per_m < 0.0
         {
-            return Err(SimError::InvalidArgument("material properties must be finite and physical".into()));
+            return Err(SimError::InvalidArgument(
+                "material properties must be finite and physical".into(),
+            ));
         }
         Ok(())
     }
@@ -75,23 +112,45 @@ pub struct PropagationConstant {
     pub intrinsic_impedance_ohm: Complex64,
 }
 
-pub fn propagation_constant(frequency_hz: f64, material: &MaterialProperties) -> Result<PropagationConstant> {
+pub fn propagation_constant(
+    frequency_hz: f64,
+    material: &MaterialProperties,
+) -> Result<PropagationConstant> {
     material.validate()?;
     if !frequency_hz.is_finite() || frequency_hz <= 0.0 {
-        return Err(SimError::InvalidArgument("frequency_hz must be finite and positive".into()));
+        return Err(SimError::InvalidArgument(
+            "frequency_hz must be finite and positive".into(),
+        ));
     }
     let omega = std::f64::consts::TAU * frequency_hz;
     let mu = VACUUM_PERMEABILITY_H_PER_M * material.relative_permeability;
-    let epsilon = material.relative_permittivity.scale(VACUUM_PERMITTIVITY_F_PER_M);
-    let sigma_plus_jwe = Complex64::new(material.conductivity_s_per_m - omega * epsilon.im, omega * epsilon.re);
+    let epsilon = material
+        .relative_permittivity
+        .scale(VACUUM_PERMITTIVITY_F_PER_M);
+    let sigma_plus_jwe = Complex64::new(
+        material.conductivity_s_per_m - omega * epsilon.im,
+        omega * epsilon.re,
+    );
     let jwm = Complex64::new(0.0, omega * mu);
-    let gamma = jwm.mul(sigma_plus_jwe).sqrt();
+    let gamma = (jwm * sigma_plus_jwe).sqrt();
     let alpha = gamma.re.abs();
     let beta = gamma.im.abs();
-    let wavelength = if beta > f64::EPSILON { std::f64::consts::TAU / beta } else { f64::INFINITY };
-    let phase_velocity = if beta > f64::EPSILON { omega / beta } else { f64::INFINITY };
-    let skin_depth = if alpha > f64::EPSILON { 1.0 / alpha } else { f64::INFINITY };
-    let impedance = jwm.div(sigma_plus_jwe).sqrt();
+    let wavelength = if beta > f64::EPSILON {
+        std::f64::consts::TAU / beta
+    } else {
+        f64::INFINITY
+    };
+    let phase_velocity = if beta > f64::EPSILON {
+        omega / beta
+    } else {
+        f64::INFINITY
+    };
+    let skin_depth = if alpha > f64::EPSILON {
+        1.0 / alpha
+    } else {
+        f64::INFINITY
+    };
+    let impedance = (jwm / sigma_plus_jwe).sqrt();
     Ok(PropagationConstant {
         alpha_np_per_m: alpha,
         beta_rad_per_m: beta,

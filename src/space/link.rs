@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::{Ephemeris, Epoch, Result, SimError};
+use serde::{Deserialize, Serialize};
 
 pub const SPEED_OF_LIGHT_M_PER_S: f64 = 299_792_458.0;
 
@@ -22,8 +22,15 @@ pub fn solve_one_way_link(
     max_iterations: usize,
     tolerance_s: f64,
 ) -> Result<SpaceLinkGeometry> {
-    if !carrier_frequency_hz.is_finite() || carrier_frequency_hz <= 0.0 || max_iterations == 0 || !tolerance_s.is_finite() || tolerance_s <= 0.0 {
-        return Err(SimError::InvalidArgument("invalid one-way link solver configuration".into()));
+    if !carrier_frequency_hz.is_finite()
+        || carrier_frequency_hz <= 0.0
+        || max_iterations == 0
+        || !tolerance_s.is_finite()
+        || tolerance_s <= 0.0
+    {
+        return Err(SimError::InvalidArgument(
+            "invalid one-way link solver configuration".into(),
+        ));
     }
     let rx_state = rx.state_at(receive_epoch)?;
     let mut transmit_seconds = receive_epoch.seconds;
@@ -41,14 +48,20 @@ pub fn solve_one_way_link(
         }
         transmit_seconds = next;
         if iteration + 1 == max_iterations {
-            return Err(SimError::InvalidArgument("light-time iteration did not converge".into()));
+            return Err(SimError::InvalidArgument(
+                "light-time iteration did not converge".into(),
+            ));
         }
     }
     let transmit_epoch = Epoch::new(transmit_seconds, receive_epoch.scale)?;
     let tx_state = tx.state_at(transmit_epoch)?;
     let delta = sub(rx_state.position_m, tx_state.position_m);
     let range = norm(delta);
-    if range <= f64::EPSILON { return Err(SimError::InvalidArgument("transmitter and receiver positions coincide".into())); }
+    if range <= f64::EPSILON {
+        return Err(SimError::InvalidArgument(
+            "transmitter and receiver positions coincide".into(),
+        ));
+    }
     let los = scale(delta, 1.0 / range);
     let relative_velocity = sub(rx_state.velocity_m_per_s, tx_state.velocity_m_per_s);
     let range_rate = dot(relative_velocity, los);
@@ -64,7 +77,15 @@ pub fn solve_one_way_link(
     })
 }
 
-fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] { [a[0] - b[0], a[1] - b[1], a[2] - b[2]] }
-fn scale(a: [f64; 3], s: f64) -> [f64; 3] { [a[0] * s, a[1] * s, a[2] * s] }
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 { a[0].mul_add(b[0], a[1].mul_add(b[1], a[2] * b[2])) }
-fn norm(a: [f64; 3]) -> f64 { dot(a, a).sqrt() }
+fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+fn scale(a: [f64; 3], s: f64) -> [f64; 3] {
+    [a[0] * s, a[1] * s, a[2] * s]
+}
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0].mul_add(b[0], a[1].mul_add(b[1], a[2] * b[2]))
+}
+fn norm(a: [f64; 3]) -> f64 {
+    dot(a, a).sqrt()
+}

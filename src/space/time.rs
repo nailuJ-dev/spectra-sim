@@ -1,9 +1,15 @@
-use serde::{Deserialize, Serialize};
 use crate::{Result, SimError};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TimeScale { Utc, Tai, Tt, Ut1, Gps }
+pub enum TimeScale {
+    Utc,
+    Tai,
+    Tt,
+    Ut1,
+    Gps,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Epoch {
@@ -13,7 +19,9 @@ pub struct Epoch {
 
 impl Epoch {
     pub fn new(seconds: f64, scale: TimeScale) -> Result<Self> {
-        if !seconds.is_finite() { return Err(SimError::NonFinite); }
+        if !seconds.is_finite() {
+            return Err(SimError::NonFinite);
+        }
         Ok(Self { seconds, scale })
     }
 }
@@ -27,7 +35,10 @@ pub struct EarthOrientation {
 
 impl EarthOrientation {
     pub fn validate(&self) -> Result<()> {
-        if !self.ut1_minus_utc_s.is_finite() || !self.polar_motion_x_rad.is_finite() || !self.polar_motion_y_rad.is_finite() {
+        if !self.ut1_minus_utc_s.is_finite()
+            || !self.polar_motion_x_rad.is_finite()
+            || !self.polar_motion_y_rad.is_finite()
+        {
             return Err(SimError::NonFinite);
         }
         Ok(())
