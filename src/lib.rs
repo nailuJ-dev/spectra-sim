@@ -4,6 +4,8 @@
 pub mod error;
 pub mod export;
 pub mod isac;
+pub mod interfaces;
+pub mod layers;
 pub mod math;
 pub mod materials;
 pub mod water;
@@ -20,6 +22,8 @@ pub mod validity;
 pub use error::{Result, SimError};
 pub use export::*;
 pub use isac::*;
+pub use interfaces::*;
+pub use layers::*;
 pub use math::*;
 pub use materials::*;
 pub use water::*;
