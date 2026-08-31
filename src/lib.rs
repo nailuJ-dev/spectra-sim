@@ -13,6 +13,7 @@ pub mod rf;
 pub mod rng;
 pub mod simulator;
 pub mod world;
+pub mod validity;
 
 pub use error::{Result, SimError};
 pub use export::*;
@@ -26,3 +27,4 @@ pub use rf::*;
 pub use rng::*;
 pub use simulator::*;
 pub use world::*;
+pub use validity::*;
