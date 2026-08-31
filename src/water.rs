@@ -54,10 +54,10 @@ pub fn water_properties(
                 "DOI:10.1109/TGRS.2004.831888",
                 ModelMaturity::ValidatedReference,
             );
-            if state.salinity_psu > 0.0 && (!( -2.0..=29.0).contains(&state.temperature_c) || state.salinity_psu > 40.0 || frequency_hz > 90.0e9) {
+            if state.salinity_psu > 0.0 && (!(-2.0..=29.0).contains(&state.temperature_c) || state.salinity_psu > 40.0 || frequency_hz > 90.0e9) {
                 validity.push(ValidityIssue::extrapolation("water", "sea-water state is outside the published validation domain (-2..29 C, 0..40 PSU, <=90 GHz)"));
             }
-            if state.salinity_psu == 0.0 && (!( -20.0..=40.0).contains(&state.temperature_c) || frequency_hz > 500.0e9) {
+            if state.salinity_psu == 0.0 && (!(-20.0..=40.0).contains(&state.temperature_c) || frequency_hz > 500.0e9) {
                 validity.push(ValidityIssue::extrapolation("water", "pure-water state is outside the published validation domain (-20..40 C, <=500 GHz)"));
             }
             meissner_wentz_relative_permittivity(frequency_hz, state.temperature_c, state.salinity_psu, conductivity)
