@@ -16,6 +16,7 @@ pub mod replay;
 pub mod rf;
 pub mod rng;
 pub mod simulator;
+pub mod space;
 pub mod world;
 pub mod validity;
 
@@ -34,5 +35,6 @@ pub use replay::*;
 pub use rf::*;
 pub use rng::*;
 pub use simulator::*;
+pub use space::*;
 pub use world::*;
 pub use validity::*;
