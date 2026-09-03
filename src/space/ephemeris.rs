@@ -1,4 +1,4 @@
-use crate::{Epoch, OrbitState, Result, SimError};
+use crate::{Epoch, OrbitState, ReferenceFrame, Result, SimError, TimeScale};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -37,6 +37,12 @@ impl Ephemeris {
 
     pub fn states(&self) -> &[OrbitState] {
         &self.states
+    }
+    pub fn frame(&self) -> ReferenceFrame {
+        self.states[0].frame
+    }
+    pub fn time_scale(&self) -> TimeScale {
+        self.states[0].epoch.scale
     }
 
     pub fn state_at(&self, epoch: Epoch) -> Result<OrbitState> {
