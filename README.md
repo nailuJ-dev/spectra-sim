@@ -62,7 +62,7 @@ deep water
 
 without reducing underwater propagation to a simple free-space path-loss correction.
 
-### Space and NTN
+### Space and NTN simulation
 
 `spectra-sim` is designed to consume professional orbital state information rather than relying on simplified satellite trajectories.
 
@@ -81,6 +81,20 @@ The space RF layer supports the architecture required for:
 * antenna pointing and geometry
 
 The architecture is intended to support high-precision astrodynamics backends such as Orekit without coupling the Rust core to a specific external runtime.
+
+`spectra-sim` 0.4 adds a deterministic space-link stack for research and engineering workflows:
+
+* TLE/OMM + SGP4/SDP4 propagation;
+* CCSDS OEM/OCM KVN/XML ingestion;
+* IERS EOP-backed TEME/GCRF/ITRF transformations;
+* absolute UTC/TAI/TT/UT1/GPS time handling;
+* ITU-R P.676-13 gaseous and P.840-9 cloud attenuation;
+* explicit rain/scintillation inputs for P.618/P.838 workflows;
+* first-order ionospheric delay, phase advance and Faraday rotation;
+* WGS-84 ground geometry, antenna pointing and link budgets;
+* optional Orekit 13.1.8 precision/reference backend using a pinned local `orekit-data` snapshot.
+
+The library does not silently download EOP, climatology or Orekit data, and does not substitute missing precision inputs with invented defaults.
 
 ## Scientific validity
 

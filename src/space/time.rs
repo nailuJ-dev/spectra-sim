@@ -11,6 +11,7 @@ pub enum TimeScale {
     Gps,
 }
 
+/// Relative simulation coordinate. Use [`AbsoluteEpoch`] for TLE/CCSDS/EOP work.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Epoch {
     pub seconds: f64,
@@ -18,11 +19,15 @@ pub struct Epoch {
 }
 
 impl Epoch {
-    pub fn new(seconds: f64, scale: TimeScale) -> Result<Self> {
+    pub fn relative_seconds(seconds: f64, scale: TimeScale) -> Result<Self> {
         if !seconds.is_finite() {
             return Err(SimError::NonFinite);
         }
         Ok(Self { seconds, scale })
+    }
+
+    pub fn new(seconds: f64, scale: TimeScale) -> Result<Self> {
+        Self::relative_seconds(seconds, scale)
     }
 }
 
