@@ -80,8 +80,7 @@ pub fn fresnel_coefficients(
             }
             let reflection = numerator / denominator;
             // Tangential-E continuity for the total E-field magnitude.
-            let transmission =
-                (Complex64::new(1.0, 0.0) + reflection).scale(cos_i) / cos_t;
+            let transmission = (Complex64::new(1.0, 0.0) + reflection).scale(cos_i) / cos_t;
             (reflection, transmission)
         }
     };

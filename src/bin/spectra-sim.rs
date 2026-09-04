@@ -81,9 +81,7 @@ fn run() -> Result<()> {
             let config: DomainRandomization = serde_json::from_slice(&fs::read(&args[3])?)?;
             let seed = match option_value(&args, "--seed") {
                 Some(raw) => raw.parse::<u64>().map_err(|_| {
-                    SimError::InvalidArgument(format!(
-                        "--seed must be an unsigned integer: {raw}"
-                    ))
+                    SimError::InvalidArgument(format!("--seed must be an unsigned integer: {raw}"))
                 })?,
                 None => scenario.seed,
             };

@@ -139,9 +139,7 @@ pub enum AntennaPatternModel {
         floor_gain_dbi: f64,
     },
     /// `(off_axis_deg, relative_gain_db)` samples. Relative gain must be <= 0.
-    TabulatedRelative {
-        samples: Vec<(f64, f64)>,
-    },
+    TabulatedRelative { samples: Vec<(f64, f64)> },
 }
 
 impl AntennaPatternModel {
@@ -154,7 +152,11 @@ impl AntennaPatternModel {
             Self::Gaussian {
                 half_power_beamwidth_deg,
                 floor_gain_dbi,
-            } => validate_gaussian(*half_power_beamwidth_deg, *floor_gain_dbi, boresight_gain_dbi),
+            } => validate_gaussian(
+                *half_power_beamwidth_deg,
+                *floor_gain_dbi,
+                boresight_gain_dbi,
+            ),
             Self::EllipticalGaussian {
                 horizontal_half_power_beamwidth_deg,
                 vertical_half_power_beamwidth_deg,
@@ -197,9 +199,14 @@ impl AntennaPatternModel {
         frequency_hz: f64,
     ) -> Result<f64> {
         self.validate(boresight_gain_dbi)?;
-        if [off_axis_rad, horizontal_angle_rad, vertical_angle_rad, frequency_hz]
-            .iter()
-            .any(|value| !value.is_finite())
+        if [
+            off_axis_rad,
+            horizontal_angle_rad,
+            vertical_angle_rad,
+            frequency_hz,
+        ]
+        .iter()
+        .any(|value| !value.is_finite())
             || frequency_hz <= 0.0
             || off_axis_rad < 0.0
         {

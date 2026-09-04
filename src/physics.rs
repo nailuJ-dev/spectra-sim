@@ -139,10 +139,8 @@ pub fn propagation_channel(
             let k = db_to_linear(k_factor_db).max(0.0);
             let los_amp = (k / (k + 1.0)).sqrt();
             let scatter_std = (1.0 / (2.0 * (k + 1.0))).sqrt();
-            let scatter = Complex64::new(
-                rng.normal(0.0, scatter_std)?,
-                rng.normal(0.0, scatter_std)?,
-            );
+            let scatter =
+                Complex64::new(rng.normal(0.0, scatter_std)?, rng.normal(0.0, scatter_std)?);
             channel = Complex64::from_polar(los_amp, direct_phase) + scatter;
             fading_db = linear_to_db(channel.magnitude_squared().max(1e-12));
             model_delta_db = -fading_db + rng.normal(0.0, shadowing_std_db)?;
@@ -172,14 +170,8 @@ pub fn link_budget(
     model: PropagationModel,
     rng: &mut DeterministicRng,
 ) -> Result<LinkBudget> {
-    let propagation = propagation_channel(
-        tx_state,
-        rx_state,
-        frequency_hz,
-        environment,
-        model,
-        rng,
-    )?;
+    let propagation =
+        propagation_channel(tx_state, rx_state, frequency_hz, environment, model, rng)?;
     let radial = radial_velocity_mps(rx_state, tx_state)?;
     let doppler = one_way_doppler_hz(frequency_hz, radial)?;
     let received = tx_power_dbm + tx_gain_dbi + rx_gain_dbi - propagation.total_one_way_loss_db;

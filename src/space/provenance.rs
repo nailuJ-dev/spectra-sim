@@ -109,7 +109,6 @@ fn hex_digest(bytes: &[u8]) -> String {
     output
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::SGP4_CRATE_VERSION;

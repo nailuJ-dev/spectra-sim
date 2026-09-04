@@ -37,8 +37,7 @@ impl MaterialProperties {
         }
         if self.relative_permittivity.im > 0.0 {
             return Err(SimError::InvalidArgument(
-                "relative_permittivity.im must be <= 0 for the exp(+j omega t) convention"
-                    .into(),
+                "relative_permittivity.im must be <= 0 for the exp(+j omega t) convention".into(),
             ));
         }
         Ok(())

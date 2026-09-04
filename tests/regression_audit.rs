@@ -22,8 +22,16 @@ fn fresnel_te_and_tm_are_not_swapped_at_oblique_incidence() {
     let theta = std::f64::consts::FRAC_PI_4;
     let te = fresnel_coefficients(1.0e9, &a, &b, theta, Polarization::Te).unwrap();
     let tm = fresnel_coefficients(1.0e9, &a, &b, theta, Polarization::Tm).unwrap();
-    assert!((te.reflection.re + 0.303_337).abs() < 1e-5, "r_TE={}", te.reflection.re);
-    assert!((tm.reflection.re + 0.092_013).abs() < 1e-5, "r_TM={}", tm.reflection.re);
+    assert!(
+        (te.reflection.re + 0.303_337).abs() < 1e-5,
+        "r_TE={}",
+        te.reflection.re
+    );
+    assert!(
+        (tm.reflection.re + 0.092_013).abs() < 1e-5,
+        "r_TM={}",
+        tm.reflection.re
+    );
     assert!(te.reflection.abs() > tm.reflection.abs());
 }
 
@@ -31,15 +39,13 @@ fn fresnel_te_and_tm_are_not_swapped_at_oblique_incidence() {
 fn fresnel_tm_transmission_uses_the_angle_ratio() {
     let a = medium(1.0);
     let b = medium(2.25);
-    let tm = fresnel_coefficients(
-        1.0e9,
-        &a,
-        &b,
-        std::f64::consts::FRAC_PI_4,
-        Polarization::Tm,
-    )
-    .unwrap();
-    assert!((tm.transmission.re - 0.728_009).abs() < 1e-5, "tau_TM={}", tm.transmission.re);
+    let tm =
+        fresnel_coefficients(1.0e9, &a, &b, std::f64::consts::FRAC_PI_4, Polarization::Tm).unwrap();
+    assert!(
+        (tm.transmission.re - 0.728_009).abs() < 1e-5,
+        "tau_TM={}",
+        tm.transmission.re
+    );
 }
 
 #[test]
@@ -56,8 +62,14 @@ fn fresnel_conserves_energy_across_the_incidence_range() {
         let te_ratio = (n2 * cos_t) / (n1 * cos_i);
         let te = fresnel_coefficients(1.0e9, &a, &b, theta, Polarization::Te).unwrap();
         let tm = fresnel_coefficients(1.0e9, &a, &b, theta, Polarization::Tm).unwrap();
-        assert!((te.reflection.abs().powi(2) + te_ratio * te.transmission.abs().powi(2) - 1.0).abs() < 1e-9);
-        assert!((tm.reflection.abs().powi(2) + te_ratio * tm.transmission.abs().powi(2) - 1.0).abs() < 1e-9);
+        assert!(
+            (te.reflection.abs().powi(2) + te_ratio * te.transmission.abs().powi(2) - 1.0).abs()
+                < 1e-9
+        );
+        assert!(
+            (tm.reflection.abs().powi(2) + te_ratio * tm.transmission.abs().powi(2) - 1.0).abs()
+                < 1e-9
+        );
     }
 }
 
@@ -79,7 +91,8 @@ fn a_gain_medium_is_rejected() {
 
 #[test]
 fn exported_snr_matches_generated_rms_for_a_pulsed_waveform() {
-    let scenario: Scenario = serde_json::from_str(include_str!("../examples/scenarios/sigint_urban.json")).unwrap();
+    let scenario: Scenario =
+        serde_json::from_str(include_str!("../examples/scenarios/sigint_urban.json")).unwrap();
     let run = run_sigint(&scenario).unwrap();
     let samples = &run.simulation.capture.samples;
     let total: f64 = samples
@@ -89,7 +102,10 @@ fn exported_snr_matches_generated_rms_for_a_pulsed_waveform() {
     let measured_rms = (total / samples.len() as f64).sqrt();
     let receiver = scenario.receiver("sensor-1").unwrap();
     let error_db = 20.0 * (measured_rms / receiver.agc_target_rms).log10();
-    assert!(error_db.abs() < 1.0, "measured_rms={measured_rms}, error={error_db} dB");
+    assert!(
+        error_db.abs() < 1.0,
+        "measured_rms={measured_rms}, error={error_db} dB"
+    );
     assert!(run.simulation.truth.clipped_sample_fraction < 0.01);
     assert_eq!(run.simulation.capture.full_scale_v, receiver.full_scale_v);
     assert_eq!(run.simulation.capture.adc_bits, receiver.adc_bits);
@@ -97,7 +113,8 @@ fn exported_snr_matches_generated_rms_for_a_pulsed_waveform() {
 
 #[test]
 fn iq_phase_imbalance_creates_cross_coupling() {
-    let scenario: Scenario = serde_json::from_str(include_str!("../examples/scenarios/sigint_urban.json")).unwrap();
+    let scenario: Scenario =
+        serde_json::from_str(include_str!("../examples/scenarios/sigint_urban.json")).unwrap();
     let emitter = scenario.emitter("emitter-alpha").unwrap();
     let mut clean = scenario.receiver("sensor-1").unwrap().clone();
     clean.iq_gain_imbalance_db = 0.0;
@@ -105,9 +122,32 @@ fn iq_phase_imbalance_creates_cross_coupling() {
     clean.phase_noise_rad_std = 0.0;
     let mut skewed = clean.clone();
     skewed.iq_phase_imbalance_deg = 20.0;
-    let a = simulate_iq(emitter, &clean, scenario.environment, scenario.propagation, 0, 512, 7).unwrap();
-    let b = simulate_iq(emitter, &skewed, scenario.environment, scenario.propagation, 0, 512, 7).unwrap();
-    assert!(a.capture.samples.iter().zip(&b.capture.samples).any(|(x, y)| (x.i - y.i).abs() > 1e-6));
+    let a = simulate_iq(
+        emitter,
+        &clean,
+        scenario.environment,
+        scenario.propagation,
+        0,
+        512,
+        7,
+    )
+    .unwrap();
+    let b = simulate_iq(
+        emitter,
+        &skewed,
+        scenario.environment,
+        scenario.propagation,
+        0,
+        512,
+        7,
+    )
+    .unwrap();
+    assert!(a
+        .capture
+        .samples
+        .iter()
+        .zip(&b.capture.samples)
+        .any(|(x, y)| (x.i - y.i).abs() > 1e-6));
 }
 
 #[test]
@@ -137,7 +177,8 @@ fn ocm_kvn_honours_a_bracketed_traj_units_list() {
 
 #[test]
 fn duplicate_entity_ids_are_rejected() {
-    let mut scenario: Scenario = serde_json::from_str(include_str!("../examples/scenarios/sigint_urban.json")).unwrap();
+    let mut scenario: Scenario =
+        serde_json::from_str(include_str!("../examples/scenarios/sigint_urban.json")).unwrap();
     let duplicate = scenario.receivers[0].clone();
     scenario.receivers.push(duplicate);
     assert!(scenario.validate().is_err());
@@ -156,31 +197,48 @@ fn directional_antenna_uses_platform_attitude() {
         },
     };
     let state_north = KinematicState {
-        position_enu_m: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
-        velocity_enu_mps: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+        position_enu_m: Vec3 {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
+        velocity_enu_mps: Vec3 {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
         roll_deg: 0.0,
         pitch_deg: 0.0,
         yaw_deg: 0.0,
     };
     let mut state_east = state_north;
     state_east.yaw_deg = 90.0;
-    let target_north = Vec3 { x: 0.0, y: 1_000.0, z: 0.0 };
-    let aligned = effective_directional_gain_dbi(&antenna, state_north, target_north, 10.0e9).unwrap();
-    let misaligned = effective_directional_gain_dbi(&antenna, state_east, target_north, 10.0e9).unwrap();
+    let target_north = Vec3 {
+        x: 0.0,
+        y: 1_000.0,
+        z: 0.0,
+    };
+    let aligned =
+        effective_directional_gain_dbi(&antenna, state_north, target_north, 10.0e9).unwrap();
+    let misaligned =
+        effective_directional_gain_dbi(&antenna, state_east, target_north, 10.0e9).unwrap();
     assert!(aligned > misaligned + 20.0);
 }
 
 #[test]
 fn cuas_path_consumes_scenario_propagation() {
-    let base: Scenario = serde_json::from_str(include_str!("../examples/scenarios/cuas_drone_isac.json")).unwrap();
+    let base: Scenario =
+        serde_json::from_str(include_str!("../examples/scenarios/cuas_drone_isac.json")).unwrap();
     let mut free = base.clone();
     free.propagation = spectra_sim::PropagationModel::FreeSpace;
     let two_ray = base;
     let a = run_cuas(&free).unwrap();
     let b = run_cuas(&two_ray).unwrap();
-    assert!((a.radar_measurement.received_power_dbm - b.radar_measurement.received_power_dbm).abs() > 1e-6);
+    assert!(
+        (a.radar_measurement.received_power_dbm - b.radar_measurement.received_power_dbm).abs()
+            > 1e-6
+    );
 }
-
 
 #[test]
 fn legacy_scenarios_without_pattern_fields_remain_valid() {

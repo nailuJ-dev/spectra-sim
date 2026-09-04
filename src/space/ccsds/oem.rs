@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::{AbsoluteEpoch, AbsoluteOrbitState, ReferenceFrame, Result, SimError};
 
 use super::{
-    convert_acceleration_to_m_per_s2, convert_distance_to_m, convert_velocity_to_m_per_s, get_required, parse_f64,
-    parse_reference_frame, parse_time_scale, parse_xml_tree, XmlNode,
+    convert_acceleration_to_m_per_s2, convert_distance_to_m, convert_velocity_to_m_per_s,
+    get_required, parse_f64, parse_reference_frame, parse_time_scale, parse_xml_tree, XmlNode,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -51,10 +51,10 @@ impl OemMessage {
         let mut seen_segment_data = false;
 
         let flush_segment = |metadata: &mut BTreeMap<String, String>,
-                            states_raw: &mut Vec<(String, [f64; 6], Option<[f64; 3]>)>,
-                            covariance_raw: &mut Vec<(String, String, Vec<f64>)>,
-                            segments: &mut Vec<OemSegment>|
-        -> Result<()> {
+                             states_raw: &mut Vec<(String, [f64; 6], Option<[f64; 3]>)>,
+                             covariance_raw: &mut Vec<(String, String, Vec<f64>)>,
+                             segments: &mut Vec<OemSegment>|
+         -> Result<()> {
             if metadata.is_empty() && states_raw.is_empty() && covariance_raw.is_empty() {
                 return Ok(());
             }
@@ -234,7 +234,11 @@ impl OemMessage {
                 };
                 // Position/velocity values are normalized here to SI then mapped
                 // back to the KVN-default km/km/s storage used by build_segment.
-                states_raw.push((epoch, values.map(|value| value / 1_000.0), acceleration_si.map(|a| a.map(|value| value / 1_000.0))));
+                states_raw.push((
+                    epoch,
+                    values.map(|value| value / 1_000.0),
+                    acceleration_si.map(|a| a.map(|value| value / 1_000.0)),
+                ));
             }
             let mut covariance_raw = Vec::new();
             let mut cov_nodes = Vec::new();

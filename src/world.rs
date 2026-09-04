@@ -562,8 +562,14 @@ impl Scenario {
         for value in &self.targets {
             value.validate()?;
         }
-        reject_duplicate_ids("emitter", self.emitters.iter().map(|value| value.id.as_str()))?;
-        reject_duplicate_ids("receiver", self.receivers.iter().map(|value| value.id.as_str()))?;
+        reject_duplicate_ids(
+            "emitter",
+            self.emitters.iter().map(|value| value.id.as_str()),
+        )?;
+        reject_duplicate_ids(
+            "receiver",
+            self.receivers.iter().map(|value| value.id.as_str()),
+        )?;
         reject_duplicate_ids("target", self.targets.iter().map(|value| value.id.as_str()))?;
         if let Some(job) = &self.sigint_job {
             validate_id(&job.emitter_id)?;

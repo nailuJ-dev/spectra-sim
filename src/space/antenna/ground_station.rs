@@ -132,8 +132,7 @@ pub fn ecef_to_geodetic(ecef_m: [f64; 3]) -> Result<GeodeticPosition> {
     let longitude_rad = y.atan2(x);
     let theta = (z * A).atan2(p * B);
     let (sin_theta, cos_theta) = theta.sin_cos();
-    let latitude_rad = (z + ep2 * B * sin_theta.powi(3))
-        .atan2(p - e2 * A * cos_theta.powi(3));
+    let latitude_rad = (z + ep2 * B * sin_theta.powi(3)).atan2(p - e2 * A * cos_theta.powi(3));
     let (sin_lat, cos_lat) = latitude_rad.sin_cos();
     let n = A / (1.0 - e2 * sin_lat * sin_lat).sqrt();
     let height_m = if cos_lat.abs() > 1e-12 {

@@ -107,12 +107,8 @@ pub fn target_direction_in_body(
     let up_zero = right_zero.cross(forward).normalized()?;
 
     // Positive aerospace roll rotates the right axis downward.
-    let right = right_zero
-        .scale(cos_roll)
-        .sub_vec(up_zero.scale(sin_roll));
-    let up = up_zero
-        .scale(cos_roll)
-        .add_vec(right_zero.scale(sin_roll));
+    let right = right_zero.scale(cos_roll).sub_vec(up_zero.scale(sin_roll));
+    let up = up_zero.scale(cos_roll).add_vec(right_zero.scale(sin_roll));
 
     let forward_component = los.dot(forward);
     let right_component = los.dot(right);

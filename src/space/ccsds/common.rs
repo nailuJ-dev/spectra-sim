@@ -99,7 +99,6 @@ pub fn convert_velocity_to_m_per_s(value: f64, unit: Option<&str>) -> Result<f64
     }
 }
 
-
 pub fn convert_acceleration_to_m_per_s2(value: f64, unit: Option<&str>) -> Result<f64> {
     match unit
         .map(str::trim)

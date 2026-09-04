@@ -151,15 +151,11 @@ fn celestial_pole_offsets_materially_change_the_gcrf_itrf_transform() {
     assert!(separation > 0.1);
 }
 
-
 #[test]
 fn utc_leap_second_preserves_si_second_spacing() {
-    let before =
-        AbsoluteEpoch::from_calendar(2016, 12, 31, 23, 59, 59.0, TimeScale::Utc).unwrap();
-    let leap =
-        AbsoluteEpoch::from_calendar(2016, 12, 31, 23, 59, 60.0, TimeScale::Utc).unwrap();
-    let after =
-        AbsoluteEpoch::from_calendar(2017, 1, 1, 0, 0, 0.0, TimeScale::Utc).unwrap();
+    let before = AbsoluteEpoch::from_calendar(2016, 12, 31, 23, 59, 59.0, TimeScale::Utc).unwrap();
+    let leap = AbsoluteEpoch::from_calendar(2016, 12, 31, 23, 59, 60.0, TimeScale::Utc).unwrap();
+    let after = AbsoluteEpoch::from_calendar(2017, 1, 1, 0, 0, 0.0, TimeScale::Utc).unwrap();
 
     assert!((leap.seconds_since(&before, None).unwrap() - 1.0).abs() < 1e-6);
     assert!((after.seconds_since(&leap, None).unwrap() - 1.0).abs() < 1e-6);
