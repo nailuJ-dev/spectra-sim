@@ -11,7 +11,7 @@ pub enum TimeScale {
     Gps,
 }
 
-/// Relative simulation coordinate. Use [`AbsoluteEpoch`] for TLE/CCSDS/EOP work.
+/// Relative simulation coordinate. Use [`crate::space::AbsoluteEpoch`] for TLE/CCSDS/EOP work.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Epoch {
     pub seconds: f64,

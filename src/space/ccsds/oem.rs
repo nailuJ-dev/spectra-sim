@@ -30,6 +30,9 @@ pub struct OemMessage {
     pub segments: Vec<OemSegment>,
 }
 
+type RawOemState = (String, [f64; 6], Option<[f64; 3]>);
+type RawOemCovariance = (String, String, Vec<f64>);
+
 impl OemMessage {
     pub fn from_kvn(input: &str) -> Result<Self> {
         if input.len() > 32 * 1024 * 1024 {
@@ -41,8 +44,8 @@ impl OemMessage {
         let mut header = BTreeMap::new();
         let mut segments = Vec::new();
         let mut metadata = BTreeMap::new();
-        let mut states_raw: Vec<(String, [f64; 6], Option<[f64; 3]>)> = Vec::new();
-        let mut covariance_raw: Vec<(String, String, Vec<f64>)> = Vec::new();
+        let mut states_raw: Vec<RawOemState> = Vec::new();
+        let mut covariance_raw: Vec<RawOemCovariance> = Vec::new();
         let mut covariance_epoch: Option<String> = None;
         let mut covariance_frame: Option<String> = None;
         let mut covariance_numbers: Vec<f64> = Vec::new();
@@ -51,10 +54,10 @@ impl OemMessage {
         let mut seen_segment_data = false;
 
         let flush_segment = |metadata: &mut BTreeMap<String, String>,
-                             states_raw: &mut Vec<(String, [f64; 6], Option<[f64; 3]>)>,
-                             covariance_raw: &mut Vec<(String, String, Vec<f64>)>,
-                             segments: &mut Vec<OemSegment>|
-         -> Result<()> {
+                            states_raw: &mut Vec<RawOemState>,
+                            covariance_raw: &mut Vec<RawOemCovariance>,
+                            segments: &mut Vec<OemSegment>|
+        -> Result<()> {
             if metadata.is_empty() && states_raw.is_empty() && covariance_raw.is_empty() {
                 return Ok(());
             }
@@ -287,8 +290,8 @@ impl OemMessage {
 
 fn build_segment(
     metadata: BTreeMap<String, String>,
-    states_raw: Vec<(String, [f64; 6], Option<[f64; 3]>)>,
-    covariance_raw: Vec<(String, String, Vec<f64>)>,
+    states_raw: Vec<RawOemState>,
+    covariance_raw: Vec<RawOemCovariance>,
 ) -> Result<OemSegment> {
     let time_scale = parse_time_scale(get_required(&metadata, "TIME_SYSTEM")?)?;
     let frame = parse_reference_frame(get_required(&metadata, "REF_FRAME")?)?;
