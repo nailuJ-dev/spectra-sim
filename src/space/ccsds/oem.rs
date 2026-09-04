@@ -54,10 +54,10 @@ impl OemMessage {
         let mut seen_segment_data = false;
 
         let flush_segment = |metadata: &mut BTreeMap<String, String>,
-                            states_raw: &mut Vec<RawOemState>,
-                            covariance_raw: &mut Vec<RawOemCovariance>,
-                            segments: &mut Vec<OemSegment>|
-        -> Result<()> {
+                             states_raw: &mut Vec<RawOemState>,
+                             covariance_raw: &mut Vec<RawOemCovariance>,
+                             segments: &mut Vec<OemSegment>|
+         -> Result<()> {
             if metadata.is_empty() && states_raw.is_empty() && covariance_raw.is_empty() {
                 return Ok(());
             }
