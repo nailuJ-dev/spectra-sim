@@ -1,8 +1,19 @@
-use crate::math::Complex64;
 use crate::{
-    db_to_linear, linear_to_db, wavelength_m, DeterministicRng, Environment, KinematicState,
-    PropagationModel, Result, SimError, Vec3, BOLTZMANN_J_PER_K,
+    db_to_linear, linear_to_db, wavelength_m, Complex64, DeterministicRng, Environment,
+    KinematicState, PropagationModel, Result, SimError, Vec3, BOLTZMANN_J_PER_K,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PropagationChannel {
+    pub distance_m: f64,
+    pub free_space_path_loss_db: f64,
+    pub fading_db: f64,
+    /// One-way excess loss beyond free-space spreading, including the explicit
+    /// environment loss and the selected propagation-model correction.
+    pub excess_loss_db: f64,
+    pub total_one_way_loss_db: f64,
+    pub complex_channel: Complex64,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LinkBudget {
@@ -79,25 +90,27 @@ pub fn azimuth_elevation_deg(sensor: Vec3, target: Vec3) -> Result<(f64, f64)> {
     Ok((az, el))
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn link_budget(
-    tx_power_dbm: f64,
-    tx_gain_dbi: f64,
-    rx_gain_dbi: f64,
+/// Computes a deterministic one-way propagation channel. Free-space spreading
+/// is separated from the model/environment excess term so monostatic radar can
+/// apply the latter twice while retaining the classical R^4 radar equation.
+pub fn propagation_channel(
     tx_state: KinematicState,
     rx_state: KinematicState,
     frequency_hz: f64,
     environment: Environment,
     model: PropagationModel,
     rng: &mut DeterministicRng,
-) -> Result<LinkBudget> {
+) -> Result<PropagationChannel> {
+    tx_state.validate()?;
+    rx_state.validate()?;
+    environment.validate()?;
+    model.validate()?;
+
     let distance = tx_state
         .position_enu_m
         .distance(rx_state.position_enu_m)
         .max(0.01);
     let fspl = free_space_path_loss_db(frequency_hz, distance)?;
-    let radial = radial_velocity_mps(rx_state, tx_state)?;
-    let doppler = one_way_doppler_hz(frequency_hz, radial)?;
     let lambda = wavelength_m(frequency_hz)?;
     let direct_phase = -std::f64::consts::TAU * distance / lambda;
     let mut channel = Complex64::from_polar(1.0, direct_phase);
@@ -116,7 +129,7 @@ pub fn link_budget(
             .max(0.01);
             let reflected_phase = -std::f64::consts::TAU * reflected / lambda;
             let reflected_amp = environment.ground_reflection_coefficient * distance / reflected;
-            channel = channel.add_complex(Complex64::from_polar(reflected_amp, reflected_phase));
+            channel = channel + Complex64::from_polar(reflected_amp, reflected_phase);
             model_delta_db = -linear_to_db(channel.magnitude_squared().max(1e-12));
         }
         PropagationModel::Rician {
@@ -126,27 +139,50 @@ pub fn link_budget(
             let k = db_to_linear(k_factor_db).max(0.0);
             let los_amp = (k / (k + 1.0)).sqrt();
             let scatter_std = (1.0 / (2.0 * (k + 1.0))).sqrt();
-            let scatter = Complex64 {
-                re: rng.normal(0.0, scatter_std)?,
-                im: rng.normal(0.0, scatter_std)?,
-            };
-            channel = Complex64::from_polar(los_amp, direct_phase).add_complex(scatter);
+            let scatter =
+                Complex64::new(rng.normal(0.0, scatter_std)?, rng.normal(0.0, scatter_std)?);
+            channel = Complex64::from_polar(los_amp, direct_phase) + scatter;
             fading_db = linear_to_db(channel.magnitude_squared().max(1e-12));
-            model_delta_db = -fading_db;
-            model_delta_db += rng.normal(0.0, shadowing_std_db)?;
+            model_delta_db = -fading_db + rng.normal(0.0, shadowing_std_db)?;
         }
     }
 
-    let total_loss = fspl + environment.extra_loss_db + model_delta_db;
-    let received = tx_power_dbm + tx_gain_dbi + rx_gain_dbi - total_loss;
-    Ok(LinkBudget {
+    let excess_loss_db = environment.extra_loss_db + model_delta_db;
+    Ok(PropagationChannel {
         distance_m: distance,
-        path_loss_db: fspl,
+        free_space_path_loss_db: fspl,
         fading_db,
-        total_loss_db: total_loss,
+        excess_loss_db,
+        total_one_way_loss_db: fspl + excess_loss_db,
+        complex_channel: channel,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn link_budget(
+    tx_power_dbm: f64,
+    tx_gain_dbi: f64,
+    rx_gain_dbi: f64,
+    tx_state: KinematicState,
+    rx_state: KinematicState,
+    frequency_hz: f64,
+    environment: Environment,
+    model: PropagationModel,
+    rng: &mut DeterministicRng,
+) -> Result<LinkBudget> {
+    let propagation =
+        propagation_channel(tx_state, rx_state, frequency_hz, environment, model, rng)?;
+    let radial = radial_velocity_mps(rx_state, tx_state)?;
+    let doppler = one_way_doppler_hz(frequency_hz, radial)?;
+    let received = tx_power_dbm + tx_gain_dbi + rx_gain_dbi - propagation.total_one_way_loss_db;
+    Ok(LinkBudget {
+        distance_m: propagation.distance_m,
+        path_loss_db: propagation.free_space_path_loss_db,
+        fading_db: propagation.fading_db,
+        total_loss_db: propagation.total_one_way_loss_db,
         received_power_dbm: received,
         radial_velocity_mps: radial,
         doppler_hz: doppler,
-        complex_channel: channel,
+        complex_channel: propagation.complex_channel,
     })
 }

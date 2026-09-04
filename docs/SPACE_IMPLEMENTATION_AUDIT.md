@@ -1,4 +1,4 @@
-# Space implementation audit — 0.4.0 candidate
+# Space implementation audit — 0.4.1 remediation
 
 ## Requirement coverage
 
@@ -7,8 +7,8 @@
 | TLE parsing | `Tle` via sgp4 2.4.0 | Orekit TLE |
 | OMM parsing | JSON/KVN/XML `OmmMessage` | Orekit when required |
 | SGP4/SDP4 | `Sgp4Propagator` | Orekit TLEPropagator |
-| CCSDS OEM | KVN/XML, segments, states, covariance | Orekit parser |
-| CCSDS OCM | KVN/XML TRAJ blocks, typed Cartesian + raw non-Cartesian preservation | Orekit parser |
+| CCSDS OEM | KVN/XML, segments, P/V/A states, covariance | Orekit full Cartesian state oracle |
+| CCSDS OCM | KVN/XML TRAJ blocks, typed Cartesian + raw non-Cartesian preservation | Orekit Cartesian trajectory oracle |
 | EOP | C04 20u24 + strict finals2000A | orekit-data |
 | GCRF/ITRF | SOFA IAU 2006/2000A + dX/dY + polar motion/UT1 | Orekit IERS 2010 |
 | TEME/ITRF | Vallado GMST82 + polar motion + LOD | Orekit |
@@ -29,14 +29,14 @@
 - OEM KVN multi-segment and OEM XML.
 - OCM standard XML `trajLine` structure and non-Cartesian preservation.
 - C04 interpolation bounds.
-- finals2000A fixed columns and rejection of missing precision fields.
+- finals2000A fixed columns, prediction-tail row skipping without zero-fill, and malformed-field rejection.
 - GCRF↔ITRF and TEME↔ITRF round trips.
 - dX/dY actually affecting the celestial-to-terrestrial transform.
 - Ionospheric f^-2 scaling.
 - P.676 positive finite attenuation.
 - P.840-9 cloud coefficient/slant relation.
 - Signed Doppler for approaching/receding geometry in relative and absolute solvers.
-- WGS-84 visibility and antenna gain behavior.
+- WGS-84 visibility, ECEF/geodetic conversion, attitude-driven directional antenna gain and radar/ISAC propagation behavior.
 
 ## Known deliberate boundaries
 

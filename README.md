@@ -28,7 +28,7 @@ Core capabilities include:
 
 ### Terrestrial
 
-Model wireless and radar propagation through configurable environments with path loss, multipath, channel effects and receiver impairments.
+Model wireless and radar propagation through configurable environments with path loss, multipath, channel effects and receiver impairments. The same explicit `free_space`, `two_ray` or seeded `rician` propagation model is consumed by the SIGINT, radar and ISAC paths. Directional antenna patterns can be attached to emitters, receivers, radar and ISAC configurations; their gain is evaluated from the platform `roll_deg` / `pitch_deg` / `yaw_deg` attitude and the instantaneous line of sight.
 
 ### Underwater and maritime
 
@@ -76,13 +76,13 @@ The space RF layer supports the architecture required for:
 * iterative light-time computation
 * slant range
 * line-of-sight range rate
-* Doppler and Doppler rate
+* one-way Doppler shift (Doppler rate is not yet a native observable)
 * Earth-space RF links
 * antenna pointing and geometry
 
-The architecture is intended to support high-precision astrodynamics backends such as Orekit without coupling the Rust core to a specific external runtime.
+The Rust core remains independent from Java, while the optional Orekit sidecar acts as a precision/reference oracle. It can propagate TLEs, transform states, and return full Cartesian state histories parsed from OEM and OCM so native results can be compared against an independent implementation.
 
-`spectra-sim` 0.4 adds a deterministic space-link stack for research and engineering workflows:
+`spectra-sim` 0.4.1 provides a deterministic space-link stack for research and engineering workflows:
 
 * TLE/OMM + SGP4/SDP4 propagation;
 * CCSDS OEM/OCM KVN/XML ingestion;
@@ -92,7 +92,7 @@ The architecture is intended to support high-precision astrodynamics backends su
 * explicit rain/scintillation inputs for P.618/P.838 workflows;
 * first-order ionospheric delay, phase advance and Faraday rotation;
 * WGS-84 ground geometry, antenna pointing and link budgets;
-* optional Orekit 13.1.8 precision/reference backend using a pinned local `orekit-data` snapshot.
+* optional Orekit 13.1.8 precision/reference backend using a pinned local `orekit-data` snapshot, including detailed OEM/OCM Cartesian oracle output.
 
 The library does not silently download EOP, climatology or Orekit data, and does not substitute missing precision inputs with invented defaults.
 
@@ -168,8 +168,9 @@ The simulator is deliberately modular so higher-fidelity propagation or astrodyn
 git clone https://github.com/nailuJ-dev/spectra-sim.git
 cd spectra-sim
 
-cargo build --release
+cargo build --release --locked
 cargo test --all-targets --all-features
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 Explore the CLI:

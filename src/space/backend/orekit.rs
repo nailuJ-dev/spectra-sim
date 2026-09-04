@@ -60,16 +60,25 @@ impl OrekitBackend {
             stdin.write_all(&payload)?;
         }
         let output = child.wait_with_output()?;
+        let stdout = String::from_utf8(output.stdout)
+            .map_err(|_| SimError::InvalidArgument("Orekit sidecar output is not UTF-8".into()))?;
+
+        // Startup failures also emit a protocol-shaped response on stdout. Parse
+        // it before falling back to stderr so callers get the actual cause.
         if !output.status.success() {
+            if let Ok(response) = serde_json::from_str::<OrekitResponse>(stdout.trim()) {
+                if let Some(error) = response.error {
+                    return Err(SimError::InvalidArgument(error));
+                }
+            }
             return Err(SimError::InvalidArgument(format!(
                 "Orekit sidecar exited with {}: {}",
                 output.status,
                 String::from_utf8_lossy(&output.stderr).trim()
             )));
         }
-        let line = String::from_utf8(output.stdout)
-            .map_err(|_| SimError::InvalidArgument("Orekit sidecar output is not UTF-8".into()))?;
-        let response: OrekitResponse = serde_json::from_str(line.trim())?;
+
+        let response: OrekitResponse = serde_json::from_str(stdout.trim())?;
         if !response.ok {
             return Err(SimError::InvalidArgument(
                 response
@@ -117,8 +126,20 @@ impl OrekitBackend {
         }))
     }
 
+    /// Parses OEM with Orekit and returns complete Cartesian segment/state data.
+    /// This is intended as an independent precision oracle for the native parser.
+    pub fn parse_oem(&self, content: &str) -> Result<OrekitResponse> {
+        self.request(&serde_json::json!({"op":"parse_oem", "content":content}))
+    }
+
     pub fn parse_oem_summary(&self, content: &str) -> Result<OrekitResponse> {
         self.request(&serde_json::json!({"op":"parse_oem_summary", "content":content}))
+    }
+
+    /// Parses OCM with Orekit and returns trajectory blocks converted to
+    /// Cartesian position/velocity/acceleration states.
+    pub fn parse_ocm(&self, content: &str) -> Result<OrekitResponse> {
+        self.request(&serde_json::json!({"op":"parse_ocm", "content":content}))
     }
 
     pub fn parse_ocm_summary(&self, content: &str) -> Result<OrekitResponse> {

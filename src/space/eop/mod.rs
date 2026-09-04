@@ -156,21 +156,29 @@ impl EopTable {
     }
 
     /// Parses the fixed-width USNO/IERS `finals2000A.*` format documented by
-    /// `readme.finals2000A`. Bulletin A fields are used. Rows missing LOD or
-    /// celestial-pole offsets are rejected rather than silently substituting zero.
+    /// `readme.finals2000A`, using Bulletin A fields. Incomplete prediction-tail
+    /// rows are skipped rather than zero-filled; present-but-invalid numeric
+    /// fields remain hard errors.
     pub fn from_finals2000a(input: &str) -> Result<Self> {
         let mut samples = Vec::new();
+        let mut skipped = 0usize;
         for line in input.lines() {
             if line.len() < 68 {
                 continue;
             }
-            let mjd = parse_slice(line, 7, 15)?;
-            let x = parse_slice(line, 18, 27)?;
-            let y = parse_slice(line, 37, 46)?;
-            let dut1 = parse_slice(line, 58, 68)?;
-            let lod_ms = parse_slice(line, 79, 86)?;
-            let dx_mas = parse_slice(line, 97, 106)?;
-            let dy_mas = parse_slice(line, 116, 125)?;
+            let fields = [
+                parse_slice_optional(line, 7, 15)?,
+                parse_slice_optional(line, 18, 27)?,
+                parse_slice_optional(line, 37, 46)?,
+                parse_slice_optional(line, 58, 68)?,
+                parse_slice_optional(line, 79, 86)?,
+                parse_slice_optional(line, 97, 106)?,
+                parse_slice_optional(line, 116, 125)?,
+            ];
+            let Some([mjd, x, y, dut1, lod_ms, dx_mas, dy_mas]) = all_present(fields) else {
+                skipped += 1;
+                continue;
+            };
             samples.push(EopSample {
                 mjd_utc: mjd,
                 polar_motion_x_rad: x * ARCSEC_TO_RAD,
@@ -181,6 +189,11 @@ impl EopTable {
                 dy_rad: dy_mas * MAS_TO_RAD,
             });
         }
+        if samples.len() < 2 {
+            return Err(SimError::InvalidArgument(format!(
+                "finals2000A contains fewer than two complete rows ({skipped} incomplete rows skipped)"
+            )));
+        }
         Self::new(samples, "IERS/USNO finals2000A")
     }
 }
@@ -189,12 +202,12 @@ pub fn epoch_from_mjd_utc(mjd: f64) -> Result<AbsoluteEpoch> {
     AbsoluteEpoch::new(2_400_000.5, mjd, TimeScale::Utc)
 }
 
-fn parse_slice(line: &str, start: usize, end: usize) -> Result<f64> {
-    parse_slice_optional(line, start, end)?.ok_or_else(|| {
-        SimError::InvalidArgument(format!(
-            "required finals2000A field {start}..{end} is blank"
-        ))
-    })
+fn all_present(fields: [Option<f64>; 7]) -> Option<[f64; 7]> {
+    let mut output = [0.0_f64; 7];
+    for (slot, field) in output.iter_mut().zip(fields) {
+        *slot = field?;
+    }
+    Some(output)
 }
 
 fn parse_slice_optional(line: &str, start: usize, end: usize) -> Result<Option<f64>> {

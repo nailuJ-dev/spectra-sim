@@ -5,6 +5,12 @@ use sha2::{Digest, Sha256};
 
 use crate::{Result, SimError};
 
+/// Version of the `sgp4` crate linked by this build.
+///
+/// `Cargo.toml` pins the exact same version; a unit test below prevents drift
+/// between the executable dependency graph and serialized provenance.
+pub const SGP4_CRATE_VERSION: &str = "2.4.0";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpaceProvenance {
     pub algorithm_version: String,
@@ -22,7 +28,7 @@ impl SpaceProvenance {
             input_sha256: sha256_hex(input),
             eop_source_sha256: None,
             orekit_data_sha256: None,
-            sgp4_version: Some("2.4.0".to_string()),
+            sgp4_version: Some(SGP4_CRATE_VERSION.to_string()),
             standards: vec![
                 "CCSDS 502.0-B-3".to_string(),
                 "IERS Conventions 2010 / IAU 2006-2000A".to_string(),
@@ -101,4 +107,19 @@ fn hex_digest(bytes: &[u8]) -> String {
         output.push(HEX[(byte & 0x0f) as usize] as char);
     }
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SGP4_CRATE_VERSION;
+
+    #[test]
+    fn sgp4_pin_matches_declared_provenance() {
+        let manifest = include_str!("../../Cargo.toml");
+        let expected = format!("sgp4 = \"={SGP4_CRATE_VERSION}\"");
+        assert!(
+            manifest.contains(&expected),
+            "Cargo.toml must pin {expected} to keep space provenance truthful"
+        );
+    }
 }

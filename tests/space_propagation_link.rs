@@ -104,3 +104,9 @@ fn one_way_link_doppler_sign_distinguishes_receding_and_approaching_motion() {
     assert!(toward.range_rate_m_per_s < 0.0);
     assert!(toward.doppler_hz > 0.0);
 }
+
+#[test]
+fn p676_rejects_frequencies_outside_the_recommendation_domain() {
+    assert!(gaseous_specific_attenuation_p676_13(0.999, 1013.25, 7.5, 288.15).is_err());
+    assert!(gaseous_specific_attenuation_p676_13(1_000.001, 1013.25, 7.5, 288.15).is_err());
+}

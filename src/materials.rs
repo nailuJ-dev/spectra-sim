@@ -1,81 +1,18 @@
-use std::ops::{Add, Div, Mul, Sub};
-
 use serde::{Deserialize, Serialize};
 
+pub use crate::math::Complex64;
 use crate::{Result, SimError, ValidityLedger};
 
 pub const VACUUM_PERMITTIVITY_F_PER_M: f64 = 8.854_187_812_8e-12;
 pub const VACUUM_PERMEABILITY_H_PER_M: f64 = 1.256_637_062_12e-6;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct Complex64 {
-    pub re: f64,
-    pub im: f64,
-}
-
-impl Complex64 {
-    pub const fn new(re: f64, im: f64) -> Self {
-        Self { re, im }
-    }
-    pub fn abs(self) -> f64 {
-        self.re.hypot(self.im)
-    }
-    pub fn arg(self) -> f64 {
-        self.im.atan2(self.re)
-    }
-    pub fn conj(self) -> Self {
-        Self::new(self.re, -self.im)
-    }
-    pub fn scale(self, value: f64) -> Self {
-        Self::new(self.re * value, self.im * value)
-    }
-    pub fn sqrt(self) -> Self {
-        let magnitude = self.abs();
-        let re = ((magnitude + self.re) * 0.5).max(0.0).sqrt();
-        let im_mag = ((magnitude - self.re) * 0.5).max(0.0).sqrt();
-        Self::new(re, if self.im < 0.0 { -im_mag } else { im_mag })
-    }
-    pub fn exp(self) -> Self {
-        let amplitude = self.re.exp();
-        Self::new(amplitude * self.im.cos(), amplitude * self.im.sin())
-    }
-}
-
-impl Add for Complex64 {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output {
-        Self::new(self.re + rhs.re, self.im + rhs.im)
-    }
-}
-
-impl Sub for Complex64 {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self::new(self.re - rhs.re, self.im - rhs.im)
-    }
-}
-
-impl Mul for Complex64 {
-    type Output = Self;
-    fn mul(self, rhs: Self) -> Self::Output {
-        Self::new(
-            self.re.mul_add(rhs.re, -(self.im * rhs.im)),
-            self.re.mul_add(rhs.im, self.im * rhs.re),
-        )
-    }
-}
-
-impl Div for Complex64 {
-    type Output = Self;
-    fn div(self, rhs: Self) -> Self::Output {
-        let denominator = rhs.re.mul_add(rhs.re, rhs.im * rhs.im);
-        Self::new(
-            self.re.mul_add(rhs.re, self.im * rhs.im) / denominator,
-            self.im.mul_add(rhs.re, -(self.re * rhs.im)) / denominator,
-        )
-    }
-}
-
+/// Bulk electromagnetic properties of a homogeneous medium.
+///
+/// **Sign convention:** spectra-sim uses `exp(+j omega t)`, therefore a
+/// passive lossy dielectric is represented as `eps_r = eps' - j eps''` with
+/// `eps'' >= 0`. Consequently `relative_permittivity.im` must be negative or
+/// zero. Positive imaginary permittivity describes a gain medium and is
+/// rejected by [`MaterialProperties::validate`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialProperties {
     pub relative_permittivity: Complex64,
@@ -96,6 +33,11 @@ impl MaterialProperties {
         {
             return Err(SimError::InvalidArgument(
                 "material properties must be finite and physical".into(),
+            ));
+        }
+        if self.relative_permittivity.im > 0.0 {
+            return Err(SimError::InvalidArgument(
+                "relative_permittivity.im must be <= 0 for the exp(+j omega t) convention".into(),
             ));
         }
         Ok(())

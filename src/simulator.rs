@@ -1,10 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cuas_isac_scenario, cuas_recorded_scenario, replay_manifest, simulate_iq, simulate_isac,
-    simulate_monostatic_radar, GoldenCuasScenarioOut, IsacMeasurement, RadarMeasurement,
-    ReplayManifest, Result, Scenario, SigintSimulation, SimError,
+    cuas_isac_scenario, cuas_recorded_scenario, replay_manifest, simulate_iq,
+    simulate_isac_with_propagation, simulate_monostatic_radar_with_propagation, DeterministicRng,
+    GoldenCuasScenarioOut, IsacMeasurement, RadarMeasurement, ReplayManifest, Result, Scenario,
+    SigintSimulation, SimError,
 };
+
+const RADAR_RNG_DOMAIN: u64 = 0x5241_4441_525F_5631;
+const ISAC_RNG_DOMAIN: u64 = 0x4953_4143_5F56_3101;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -55,12 +59,29 @@ pub fn run_cuas(scenario: &Scenario) -> Result<CuasRun> {
         .ok_or_else(|| SimError::InvalidArgument("scenario has no cuas_job".into()))?;
     let sensor = scenario.receiver(&job.sensor_id)?;
     let target = scenario.target(&job.target_id)?;
-    let radar_measurement =
-        simulate_monostatic_radar(sensor.state, target, &job.radar, scenario.environment)?;
+
+    let mut radar_rng = DeterministicRng::new(scenario.seed ^ RADAR_RNG_DOMAIN);
+    let radar_measurement = simulate_monostatic_radar_with_propagation(
+        sensor.state,
+        target,
+        &job.radar,
+        scenario.environment,
+        scenario.propagation,
+        &mut radar_rng,
+    )?;
     let recorded_scenario =
         cuas_recorded_scenario(scenario, &sensor.id, target, &radar_measurement)?;
+
     let (isac_measurement, isac_scenario) = if let Some(config) = &job.isac {
-        let measurement = simulate_isac(sensor.state, target, config, scenario.environment)?;
+        let mut isac_rng = DeterministicRng::new(scenario.seed ^ ISAC_RNG_DOMAIN);
+        let measurement = simulate_isac_with_propagation(
+            sensor.state,
+            target,
+            config,
+            scenario.environment,
+            scenario.propagation,
+            &mut isac_rng,
+        )?;
         let out = cuas_isac_scenario(
             scenario,
             &sensor.id,
@@ -72,6 +93,7 @@ pub fn run_cuas(scenario: &Scenario) -> Result<CuasRun> {
     } else {
         (None, None)
     };
+
     let material = (
         &radar_measurement,
         &recorded_scenario,

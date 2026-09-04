@@ -1,7 +1,8 @@
-FROM rust:1.85-bookworm AS build
+# Reproducible build: compiler and dependency graph are both pinned.
+FROM rust:1.85.0-bookworm AS build
 WORKDIR /src
 COPY . .
-RUN cargo build --release --locked || cargo build --release
+RUN cargo build --release --locked
 
 FROM debian:bookworm-slim
 RUN useradd --create-home --uid 10001 spectra

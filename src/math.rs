@@ -1,3 +1,5 @@
+use std::ops::{Add, Div, Mul, Sub};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{Result, SimError};
@@ -58,6 +60,14 @@ impl Vec3 {
             .mul_add(other.x, self.y.mul_add(other.y, self.z * other.z))
     }
 
+    pub fn cross(self, other: Self) -> Self {
+        Self {
+            x: self.y.mul_add(other.z, -(self.z * other.y)),
+            y: self.z.mul_add(other.x, -(self.x * other.z)),
+            z: self.x.mul_add(other.y, -(self.y * other.x)),
+        }
+    }
+
     pub fn norm(self) -> f64 {
         self.dot(self).max(0.0).sqrt()
     }
@@ -77,7 +87,12 @@ impl Vec3 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Shared complex-number type used by RF, propagation, interfaces and materials.
+///
+/// Keeping one type across the crate avoids API-incompatible complex values in
+/// otherwise composable public structures.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Complex64 {
     pub re: f64,
     pub im: f64,
@@ -85,6 +100,10 @@ pub struct Complex64 {
 
 impl Complex64 {
     pub const ZERO: Self = Self { re: 0.0, im: 0.0 };
+
+    pub const fn new(re: f64, im: f64) -> Self {
+        Self { re, im }
+    }
 
     pub fn from_polar(amplitude: f64, phase_rad: f64) -> Self {
         let (sin, cos) = phase_rad.sin_cos();
@@ -94,18 +113,36 @@ impl Complex64 {
         }
     }
 
+    pub fn abs(self) -> f64 {
+        self.re.hypot(self.im)
+    }
+
+    pub fn arg(self) -> f64 {
+        self.im.atan2(self.re)
+    }
+
+    pub fn conj(self) -> Self {
+        Self::new(self.re, -self.im)
+    }
+
+    pub fn sqrt(self) -> Self {
+        let magnitude = self.abs();
+        let re = ((magnitude + self.re) * 0.5).max(0.0).sqrt();
+        let im_mag = ((magnitude - self.re) * 0.5).max(0.0).sqrt();
+        Self::new(re, if self.im < 0.0 { -im_mag } else { im_mag })
+    }
+
+    pub fn exp(self) -> Self {
+        let amplitude = self.re.exp();
+        Self::new(amplitude * self.im.cos(), amplitude * self.im.sin())
+    }
+
     pub fn add_complex(self, other: Self) -> Self {
-        Self {
-            re: self.re + other.re,
-            im: self.im + other.im,
-        }
+        self + other
     }
 
     pub fn mul_complex(self, other: Self) -> Self {
-        Self {
-            re: self.re.mul_add(other.re, -(self.im * other.im)),
-            im: self.re.mul_add(other.im, self.im * other.re),
-        }
+        self * other
     }
 
     pub fn scale(self, scalar: f64) -> Self {
@@ -120,22 +157,65 @@ impl Complex64 {
     }
 
     pub fn phase(self) -> f64 {
-        self.im.atan2(self.re)
+        self.arg()
+    }
+}
+
+impl Add for Complex64 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.re + rhs.re, self.im + rhs.im)
+    }
+}
+
+impl Sub for Complex64 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.re - rhs.re, self.im - rhs.im)
+    }
+}
+
+impl Mul for Complex64 {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::new(
+            self.re.mul_add(rhs.re, -(self.im * rhs.im)),
+            self.re.mul_add(rhs.im, self.im * rhs.re),
+        )
+    }
+}
+
+impl Div for Complex64 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let denominator = rhs.re.mul_add(rhs.re, rhs.im * rhs.im);
+        Self::new(
+            self.re.mul_add(rhs.re, self.im * rhs.im) / denominator,
+            self.im.mul_add(rhs.re, -(self.re * rhs.im)) / denominator,
+        )
     }
 }
 
 pub fn db_to_linear(db: f64) -> f64 {
     10.0_f64.powf(db / 10.0)
 }
+
 pub fn linear_to_db(value: f64) -> f64 {
     10.0 * value.max(1e-300).log10()
 }
+
 pub fn dbm_to_watts(dbm: f64) -> f64 {
     10.0_f64.powf((dbm - 30.0) / 10.0)
 }
+
 pub fn watts_to_dbm(watts: f64) -> f64 {
     10.0 * watts.max(1e-300).log10() + 30.0
 }
+
 pub fn wavelength_m(frequency_hz: f64) -> Result<f64> {
     if !frequency_hz.is_finite() || frequency_hz <= 0.0 {
         return Err(SimError::InvalidArgument(

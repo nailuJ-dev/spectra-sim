@@ -418,11 +418,15 @@ fn copy_first_section(root: &XmlNode, names: &[&str], target: &mut BTreeMap<Stri
     }
 }
 
+/// Removes a trailing CCSDS scalar unit annotation such as `125.0 [kg]`.
+/// Entirely bracketed values such as `TRAJ_UNITS = [km,km,km,km/s,km/s,km/s]`
+/// are unit lists and must remain intact.
 fn strip_unit(value: &str) -> String {
+    let value = value.trim();
     if let Some(start) = value.rfind('[') {
-        if value.ends_with(']') {
+        if start > 0 && value.ends_with(']') {
             return value[..start].trim().to_string();
         }
     }
-    value.trim().to_string()
+    value.to_string()
 }

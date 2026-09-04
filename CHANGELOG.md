@@ -1,3 +1,35 @@
+## 0.4.1
+
+### Breaking / dataset integrity
+- `IqCaptureOut` now includes `full_scale_v` and `adc_bits`; `SigintTruth` now includes effective directional gains and `clipped_sample_fraction`.
+- Raw I/Q samples change because AGC now targets measured waveform RMS and the IQ phase-imbalance model includes real I/Q cross-coupling.
+- Radar/ISAC results can change when a non-free-space propagation model or directional antenna pattern is configured, because those settings are now actually consumed.
+- Datasets generated with v0.4.0 pulsed-waveform AGC or oblique-incidence Fresnel physics should be regenerated rather than numerically relabelled.
+
+### Fixed
+- Corrected TE/TM Fresnel reflection equations and TM electric-field transmission at oblique incidence.
+- Corrected AGC for duty-cycled/non-unit-power waveforms and receiver IQ quadrature skew.
+- Preserved bracketed OCM `TRAJ_UNITS` lists.
+- Accepted and preserved optional OEM acceleration triplets; malformed numeric state records are rejected explicitly.
+- Skipped incomplete `finals2000A` prediction-tail rows without inventing zero LOD/dX/dY values.
+- Enforced the passive-medium complex-permittivity sign convention.
+- Cached embedded P.676-13 spectroscopy tables and enforced the model's 1–1000 GHz domain.
+- Replaced flat local ENU-to-geodetic export with WGS-84 ENU→ECEF→geodetic conversion.
+- Rejected duplicate emitter/receiver/target IDs and malformed CLI `--seed` values.
+
+### Integrated
+- Unified the two previously incompatible public `Complex64` implementations into one type while preserving the `MaterialComplex64` compatibility alias.
+- Added serializable isotropic/Gaussian/elliptical/tabulated antenna patterns and connected platform attitude to terrestrial SIGINT/radar/ISAC gain.
+- Connected `Scenario::propagation` to radar and ISAC with deterministic per-domain RNG streams.
+- Expanded the Orekit 13.1.8 sidecar into a full OEM/OCM Cartesian precision oracle.
+
+### Build and supply chain
+- Pinned Rust 1.85.0 consistently across local toolchain, CI and Docker.
+- Removed the Docker unlocked-build fallback.
+- Enforced `cargo-deny` and `cargo-audit` in CI/release checks.
+- Removed nested Maven `target/` artifacts from the deliverable and hardened Maven shading against stale signatures/module descriptors.
+- Made SGP4/Orekit version provenance mechanically checkable instead of relying on duplicated literals.
+
 ## 0.4.0
 
 ### Added

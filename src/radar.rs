@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    azimuth_elevation_deg, db_to_linear, line_of_sight_unit, monostatic_doppler_hz,
-    radial_velocity_mps, thermal_noise_dbm, wavelength_m, Environment, KinematicState, RadarConfig,
+    azimuth_elevation_deg, configured_directional_gain_dbi, db_to_linear, line_of_sight_unit,
+    monostatic_doppler_hz, propagation_channel, radial_velocity_mps, thermal_noise_dbm,
+    wavelength_m, DeterministicRng, Environment, KinematicState, PropagationModel, RadarConfig,
     Result, SimError, Target,
 };
 
@@ -22,18 +23,48 @@ pub struct RadarMeasurement {
     pub range_resolution_m: f64,
     pub velocity_resolution_mps: f64,
     pub angle_resolution_deg: f64,
+    pub tx_effective_gain_dbi: f64,
+    pub rx_effective_gain_dbi: f64,
+    /// Round-trip excess propagation loss beyond the classical free-space R^4
+    /// radar equation. It includes explicit environmental excess loss and the
+    /// selected scenario propagation model on both legs.
+    pub propagation_excess_loss_db: f64,
 }
 
+/// Backward-compatible free-space wrapper. New scenario execution uses
+/// [`simulate_monostatic_radar_with_propagation`] so `Scenario::propagation`
+/// is never ignored.
 pub fn simulate_monostatic_radar(
     sensor: KinematicState,
     target: &Target,
     config: &RadarConfig,
     environment: Environment,
 ) -> Result<RadarMeasurement> {
+    let mut rng = DeterministicRng::new(0);
+    simulate_monostatic_radar_with_propagation(
+        sensor,
+        target,
+        config,
+        environment,
+        PropagationModel::FreeSpace,
+        &mut rng,
+    )
+}
+
+pub fn simulate_monostatic_radar_with_propagation(
+    sensor: KinematicState,
+    target: &Target,
+    config: &RadarConfig,
+    environment: Environment,
+    propagation: PropagationModel,
+    rng: &mut DeterministicRng,
+) -> Result<RadarMeasurement> {
     target.validate()?;
     config.validate()?;
     environment.validate()?;
+    propagation.validate()?;
     sensor.validate()?;
+
     let range = sensor
         .position_enu_m
         .distance(target.state.position_enu_m)
@@ -41,10 +72,38 @@ pub fn simulate_monostatic_radar(
     let radial = radial_velocity_mps(sensor, target.state)?;
     let (az, el) = azimuth_elevation_deg(sensor.position_enu_m, target.state.position_enu_m)?;
     let lambda = wavelength_m(config.carrier_frequency_hz)?;
+    let tx_gain_dbi = configured_directional_gain_dbi(
+        config.tx_gain_dbi,
+        &config.tx_pattern,
+        sensor,
+        target.state.position_enu_m,
+        config.carrier_frequency_hz,
+    )?;
+    let rx_gain_dbi = configured_directional_gain_dbi(
+        config.rx_gain_dbi,
+        &config.rx_pattern,
+        sensor,
+        target.state.position_enu_m,
+        config.carrier_frequency_hz,
+    )?;
+
+    // The classical monostatic radar equation already accounts for free-space
+    // spreading on both legs through R^4. Apply only the non-free-space one-way
+    // channel term twice for the reciprocal outbound/return path.
+    let one_way = propagation_channel(
+        sensor,
+        target.state,
+        config.carrier_frequency_hz,
+        environment,
+        propagation,
+        rng,
+    )?;
+    let round_trip_excess_loss_db = 2.0 * one_way.excess_loss_db;
+
     let tx_watts = 10.0_f64.powf((config.tx_power_dbm - 30.0) / 10.0);
-    let gt = db_to_linear(config.tx_gain_dbi);
-    let gr = db_to_linear(config.rx_gain_dbi);
-    let losses = db_to_linear(config.system_loss_db + environment.extra_loss_db);
+    let gt = db_to_linear(tx_gain_dbi);
+    let gr = db_to_linear(rx_gain_dbi);
+    let losses = db_to_linear(config.system_loss_db + round_trip_excess_loss_db);
     let numerator = tx_watts * gt * gr * lambda.powi(2) * target.rcs_m2.max(1e-12);
     let denominator = (4.0 * std::f64::consts::PI).powi(3) * range.powi(4) * losses;
     let received_watts = (numerator / denominator).max(1e-300);
@@ -77,6 +136,7 @@ pub fn simulate_monostatic_radar(
     if !snr.is_finite() {
         return Err(SimError::NonFinite);
     }
+
     Ok(RadarMeasurement {
         range_m: range,
         radial_velocity_mps: radial,
@@ -91,5 +151,8 @@ pub fn simulate_monostatic_radar(
         range_resolution_m: range_resolution,
         velocity_resolution_mps: velocity_resolution,
         angle_resolution_deg: angle_resolution,
+        tx_effective_gain_dbi: tx_gain_dbi,
+        rx_effective_gain_dbi: rx_gain_dbi,
+        propagation_excess_loss_db: round_trip_excess_loss_db,
     })
 }

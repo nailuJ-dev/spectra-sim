@@ -12,6 +12,8 @@ fn sigint_export_matches_public_iq_contract() {
     let value = serde_json::to_value(&run.simulation.capture).unwrap_or_default();
     assert!(value.get("sample_rate_hz").is_some());
     assert!(value.get("center_frequency_hz").is_some());
+    assert!(value.get("full_scale_v").is_some());
+    assert!(value.get("adc_bits").is_some());
     assert!(value
         .get("samples")
         .and_then(|v| v.as_array())

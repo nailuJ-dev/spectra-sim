@@ -199,7 +199,7 @@ checksum = "5dd1c9b1b5d34e1e949deb0dac9ad612e20746c59eaa737e52fd29703c19ec5c"
 
 [[package]]
 name = "spectra-sim"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "quick-xml",
  "serde",
