@@ -208,13 +208,7 @@ fn add_seconds(jd1: f64, jd2: f64, seconds: f64) -> (f64, f64) {
 
 fn normalize_parts(jd1: f64, jd2: f64) -> (f64, f64) {
     let whole = jd2.floor();
-    let mut a = jd1 + whole;
-    let mut b = jd2 - whole;
-    if b < 0.0 {
-        a -= 1.0;
-        b += 1.0;
-    }
-    (a, b)
+    (jd1 + whole, jd2 - whole)
 }
 
 fn scale_label(scale: TimeScale) -> Result<&'static str> {

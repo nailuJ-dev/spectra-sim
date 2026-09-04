@@ -79,9 +79,14 @@ fn run() -> Result<()> {
             }
             let scenario = load_scenario(&args[2])?;
             let config: DomainRandomization = serde_json::from_slice(&fs::read(&args[3])?)?;
-            let seed = option_value(&args, "--seed")
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(scenario.seed);
+            let seed = match option_value(&args, "--seed") {
+                Some(raw) => raw.parse::<u64>().map_err(|_| {
+                    SimError::InvalidArgument(format!(
+                        "--seed must be an unsigned integer: {raw}"
+                    ))
+                })?,
+                None => scenario.seed,
+            };
             let out_path = option_value(&args, "--out")
                 .unwrap_or_else(|| "artifacts/randomized_scenario.json".into());
             let randomized = config.apply(&scenario, seed)?;

@@ -63,11 +63,25 @@ def main():
     noise=(rng.normal(0,noise_rms/math.sqrt(2),count)+1j*rng.normal(0,noise_rms/math.sqrt(2),count))
     ppm=float(receiver['oscillator_ppm']); cfo=float(emitter['center_frequency_hz'])*ppm*1e-6
     phase_walk=np.cumsum(rng.normal(0,float(receiver['phase_noise_rad_std']),count))
-    y=(y+noise)*np.exp(1j*(2*np.pi*cfo*t+phase_walk))
-    gain=10**(float(receiver['iq_gain_imbalance_db'])/20); y=y.real*math.sqrt(gain)+1j*y.imag/math.sqrt(gain)
+    # Match the Rust core ordering: carrier/CFO and phase noise act on the
+    # signal, then receiver thermal noise is added, then IQ imbalance acts on
+    # the complete complex baseband.
+    y=y*np.exp(1j*(2*np.pi*cfo*t+phase_walk))+noise
+    gain_root=math.sqrt(10**(float(receiver['iq_gain_imbalance_db'])/20))
+    half=math.radians(float(receiver.get('iq_phase_imbalance_deg',0.0)))/2
+    ci,si=math.cos(half),math.sin(half)
+    y=gain_root*(y.real*ci+y.imag*si)+1j*((y.imag*ci+y.real*si)/gain_root)
     bits=int(receiver['adc_bits']); qmax=(1<<(bits-1))-1
     i=np.round(np.clip(y.real,-0.999999,0.999999)*qmax)/qmax; q=np.round(np.clip(y.imag,-0.999999,0.999999)*qmax)/qmax
-    payload={'id':f"sionna-{emitter['id']}-{receiver['id']}-{scenario['timestamp_ms']}",'timestamp_ms':int(scenario['timestamp_ms']),'sample_rate_hz':fs,'center_frequency_hz':float(emitter['center_frequency_hz']),'samples':[{'i':float(a),'q':float(b)} for a,b in zip(i,q)]}
+    payload={
+        'id':f"sionna-{emitter['id']}-{receiver['id']}-{scenario['timestamp_ms']}",
+        'timestamp_ms':int(scenario['timestamp_ms']),
+        'sample_rate_hz':fs,
+        'center_frequency_hz':float(emitter['center_frequency_hz']),
+        'full_scale_v':float(receiver['full_scale_v']),
+        'adc_bits':bits,
+        'samples':[{'i':float(a),'q':float(b)} for a,b in zip(i,q)],
+    }
     out=Path(args.out); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(payload,indent=2))
 
 if __name__=='__main__': main()

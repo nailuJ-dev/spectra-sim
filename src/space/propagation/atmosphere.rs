@@ -1,6 +1,31 @@
+use std::sync::OnceLock;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{Result, SimError};
+
+/// Validity envelope of the line-by-line model in ITU-R P.676-13.
+pub const P676_MIN_FREQUENCY_GHZ: f64 = 1.0;
+pub const P676_MAX_FREQUENCY_GHZ: f64 = 1_000.0;
+
+static OXYGEN_LINES: OnceLock<Vec<[f64; 7]>> = OnceLock::new();
+static WATER_LINES: OnceLock<Vec<[f64; 7]>> = OnceLock::new();
+
+fn oxygen_lines() -> Result<&'static [[f64; 7]]> {
+    if let Some(rows) = OXYGEN_LINES.get() {
+        return Ok(rows.as_slice());
+    }
+    let rows = parse_lines(include_str!("p676_v13_oxygen.csv"))?;
+    Ok(OXYGEN_LINES.get_or_init(|| rows).as_slice())
+}
+
+fn water_lines() -> Result<&'static [[f64; 7]]> {
+    if let Some(rows) = WATER_LINES.get() {
+        return Ok(rows.as_slice());
+    }
+    let rows = parse_lines(include_str!("p676_v13_water.csv"))?;
+    Ok(WATER_LINES.get_or_init(|| rows).as_slice())
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AtmosphericLayer {
@@ -66,22 +91,23 @@ pub fn gaseous_specific_attenuation_p676_13(
     {
         return Err(SimError::NonFinite);
     }
-    if frequency_ghz <= 0.0
-        || pressure_hpa <= 0.0
-        || water_vapour_density_g_m3 < 0.0
-        || temperature_k <= 0.0
-    {
+    if pressure_hpa <= 0.0 || water_vapour_density_g_m3 < 0.0 || temperature_k <= 0.0 {
         return Err(SimError::InvalidArgument(
             "invalid P.676 atmospheric inputs".into(),
         ));
     }
-    let oxygen = parse_lines(include_str!("p676_v13_oxygen.csv"))?;
-    let water = parse_lines(include_str!("p676_v13_water.csv"))?;
+    if !(P676_MIN_FREQUENCY_GHZ..=P676_MAX_FREQUENCY_GHZ).contains(&frequency_ghz) {
+        return Err(SimError::InvalidArgument(format!(
+            "P.676-13 is defined for {P676_MIN_FREQUENCY_GHZ}..={P676_MAX_FREQUENCY_GHZ} GHz, got {frequency_ghz}"
+        )));
+    }
+    let oxygen = oxygen_lines()?;
+    let water = water_lines()?;
     let theta = 300.0 / temperature_k;
     let e = water_vapour_density_g_m3 * temperature_k / 216.7;
 
     let mut n_oxygen = 0.0;
-    for row in oxygen {
+    for row in oxygen.iter().copied() {
         let f0 = row[0];
         let a1 = row[1];
         let a2 = row[2];
@@ -108,7 +134,7 @@ pub fn gaseous_specific_attenuation_p676_13(
     n_oxygen += n_d;
 
     let mut n_water = 0.0;
-    for row in water {
+    for row in water.iter().copied() {
         let f0 = row[0];
         let b1 = row[1];
         let b2 = row[2];

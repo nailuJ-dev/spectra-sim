@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cuas_reference_features, free_space_path_loss_db, thermal_noise_dbm, IsacMeasurement, Origin,
-    RadarMeasurement, Result, Scenario, SigintSimulation, SimError, Target, TargetKind, Vec3,
+    cuas_reference_features, effective_directional_gain_dbi, link_budget, thermal_noise_dbm,
+    DeterministicRng, IsacMeasurement, Origin, RadarMeasurement, Result, Scenario,
+    SigintSimulation, SimError, Target, TargetKind, Vec3,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -209,14 +210,23 @@ pub fn cuas_isac_scenario(
 pub fn enu_to_geo(origin: &Origin, enu_m: Vec3) -> Result<PositionGeo> {
     origin.validate()?;
     enu_m.validate()?;
-    let lat_rad = origin.latitude_deg.to_radians();
-    let latitude = origin.latitude_deg + enu_m.y / 111_320.0;
-    let cos_lat = lat_rad.cos().abs().max(1e-6);
-    let longitude = origin.longitude_deg + enu_m.x / (111_320.0 * cos_lat);
+    let geodetic_origin = crate::GeodeticPosition {
+        latitude_rad: origin.latitude_deg.to_radians(),
+        longitude_rad: origin.longitude_deg.to_radians(),
+        height_m: origin.altitude_m,
+    };
+    let origin_ecef = crate::geodetic_to_ecef(geodetic_origin);
+    let delta_ecef = crate::enu_delta_to_ecef([enu_m.x, enu_m.y, enu_m.z], geodetic_origin);
+    let point_ecef = [
+        origin_ecef[0] + delta_ecef[0],
+        origin_ecef[1] + delta_ecef[1],
+        origin_ecef[2] + delta_ecef[2],
+    ];
+    let geodetic = crate::ecef_to_geodetic(point_ecef)?;
     Ok(PositionGeo {
-        latitude_deg: latitude,
-        longitude_deg: longitude,
-        altitude_m: origin.altitude_m + enu_m.z,
+        latitude_deg: geodetic.latitude_rad.to_degrees(),
+        longitude_deg: geodetic.longitude_rad.to_degrees(),
+        altitude_m: geodetic.height_m,
     })
 }
 
@@ -262,17 +272,26 @@ fn rf_energy_proxy(scenario: &Scenario, sensor_id: &str, target: &Target) -> Res
         return Ok(0.0);
     };
     let sensor = scenario.receiver(sensor_id)?;
-    let range = sensor
-        .state
-        .position_enu_m
-        .distance(target.state.position_enu_m)
-        .max(0.01);
-    let path_loss = free_space_path_loss_db(frequency_hz, range)?;
-    let received_dbm = tx_dbm + sensor.antenna.gain_dbi
-        - sensor.antenna.cable_loss_db
-        - sensor.antenna.polarization_loss_db
-        - path_loss
-        - scenario.environment.extra_loss_db;
+    let rx_gain_dbi = effective_directional_gain_dbi(
+        &sensor.antenna,
+        sensor.state,
+        target.state.position_enu_m,
+        frequency_hz,
+    )? - sensor.antenna.cable_loss_db
+        - sensor.antenna.polarization_loss_db;
+    let mut rng = DeterministicRng::new(scenario.seed ^ 0x5246_5F45_4E45_5247);
+    let budget = link_budget(
+        tx_dbm,
+        0.0,
+        rx_gain_dbi,
+        target.state,
+        sensor.state,
+        frequency_hz,
+        scenario.environment,
+        scenario.propagation,
+        &mut rng,
+    )?;
+    let received_dbm = budget.received_power_dbm;
     let noise_dbm = thermal_noise_dbm(
         bandwidth_hz.min(sensor.sample_rate_hz),
         scenario.environment.temperature_k,

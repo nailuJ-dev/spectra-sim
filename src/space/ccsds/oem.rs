@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{AbsoluteEpoch, AbsoluteOrbitState, ReferenceFrame, Result, SimError};
 
 use super::{
-    convert_distance_to_m, convert_velocity_to_m_per_s, get_required, parse_f64,
+    convert_acceleration_to_m_per_s2, convert_distance_to_m, convert_velocity_to_m_per_s, get_required, parse_f64,
     parse_reference_frame, parse_time_scale, parse_xml_tree, XmlNode,
 };
 
@@ -41,7 +41,7 @@ impl OemMessage {
         let mut header = BTreeMap::new();
         let mut segments = Vec::new();
         let mut metadata = BTreeMap::new();
-        let mut states_raw: Vec<(String, [f64; 6])> = Vec::new();
+        let mut states_raw: Vec<(String, [f64; 6], Option<[f64; 3]>)> = Vec::new();
         let mut covariance_raw: Vec<(String, String, Vec<f64>)> = Vec::new();
         let mut covariance_epoch: Option<String> = None;
         let mut covariance_frame: Option<String> = None;
@@ -51,10 +51,10 @@ impl OemMessage {
         let mut seen_segment_data = false;
 
         let flush_segment = |metadata: &mut BTreeMap<String, String>,
-                             states_raw: &mut Vec<(String, [f64; 6])>,
-                             covariance_raw: &mut Vec<(String, String, Vec<f64>)>,
-                             segments: &mut Vec<OemSegment>|
-         -> Result<()> {
+                            states_raw: &mut Vec<(String, [f64; 6], Option<[f64; 3]>)>,
+                            covariance_raw: &mut Vec<(String, String, Vec<f64>)>,
+                            segments: &mut Vec<OemSegment>|
+        -> Result<()> {
             if metadata.is_empty() && states_raw.is_empty() && covariance_raw.is_empty() {
                 return Ok(());
             }
@@ -142,13 +142,30 @@ impl OemMessage {
                 continue;
             }
             let cols: Vec<&str> = line.split_whitespace().collect();
-            if cols.len() == 7 && cols[0].contains('T') {
+            if (cols.len() == 7 || cols.len() == 10) && cols[0].contains('T') {
                 let mut values = [0.0; 6];
                 for (index, target) in values.iter_mut().enumerate() {
                     *target = parse_f64(cols[index + 1], "OEM state")?;
                 }
-                states_raw.push((cols[0].to_string(), values));
+                let acceleration = if cols.len() == 10 {
+                    Some([
+                        parse_f64(cols[7], "OEM X_DDOT")?,
+                        parse_f64(cols[8], "OEM Y_DDOT")?,
+                        parse_f64(cols[9], "OEM Z_DDOT")?,
+                    ])
+                } else {
+                    None
+                };
+                states_raw.push((cols[0].to_string(), values, acceleration));
                 seen_segment_data = true;
+            } else if cols.len() > 1
+                && cols[0].contains('T')
+                && cols[1..].iter().all(|column| column.parse::<f64>().is_ok())
+            {
+                return Err(SimError::InvalidArgument(format!(
+                    "OEM ephemeris line must carry 6 or 9 numeric fields, found {}",
+                    cols.len() - 1
+                )));
             }
         }
         flush_segment(
@@ -199,8 +216,25 @@ impl OemMessage {
                     state_component(state, "Y_DOT", true)?,
                     state_component(state, "Z_DOT", true)?,
                 ];
-                // Values are normalized here to SI and tagged for build_segment.
-                states_raw.push((epoch, values.map(|value| value / 1_000.0)));
+                let acceleration_names = ["X_DDOT", "Y_DDOT", "Z_DDOT"];
+                let present = acceleration_names.map(|name| state.child(name).is_some());
+                let acceleration_si = match present {
+                    [false, false, false] => None,
+                    [true, true, true] => Some([
+                        state_acceleration_component(state, "X_DDOT")?,
+                        state_acceleration_component(state, "Y_DDOT")?,
+                        state_acceleration_component(state, "Z_DDOT")?,
+                    ]),
+                    _ => {
+                        return Err(SimError::InvalidArgument(
+                            "OEM XML acceleration must provide X_DDOT, Y_DDOT and Z_DDOT together"
+                                .into(),
+                        ));
+                    }
+                };
+                // Position/velocity values are normalized here to SI then mapped
+                // back to the KVN-default km/km/s storage used by build_segment.
+                states_raw.push((epoch, values.map(|value| value / 1_000.0), acceleration_si.map(|a| a.map(|value| value / 1_000.0))));
             }
             let mut covariance_raw = Vec::new();
             let mut cov_nodes = Vec::new();
@@ -249,7 +283,7 @@ impl OemMessage {
 
 fn build_segment(
     metadata: BTreeMap<String, String>,
-    states_raw: Vec<(String, [f64; 6])>,
+    states_raw: Vec<(String, [f64; 6], Option<[f64; 3]>)>,
     covariance_raw: Vec<(String, String, Vec<f64>)>,
 ) -> Result<OemSegment> {
     let time_scale = parse_time_scale(get_required(&metadata, "TIME_SYSTEM")?)?;
@@ -259,10 +293,19 @@ fn build_segment(
             "OEM segment requires at least two state vectors".into(),
         ));
     }
+    let acceleration_count = states_raw
+        .iter()
+        .filter(|(_, _, acceleration)| acceleration.is_some())
+        .count();
+    if acceleration_count != 0 && acceleration_count != states_raw.len() {
+        return Err(SimError::InvalidArgument(
+            "OEM segment must use a consistent P/V or P/V/A state layout".into(),
+        ));
+    }
     let mut states = Vec::with_capacity(states_raw.len());
-    for (epoch_raw, values) in states_raw {
+    for (epoch_raw, values, acceleration) in states_raw {
         let epoch = AbsoluteEpoch::parse_ccsds(&epoch_raw, time_scale)?;
-        states.push(AbsoluteOrbitState::new(
+        states.push(AbsoluteOrbitState::new_with_acceleration(
             epoch,
             frame,
             [
@@ -275,6 +318,7 @@ fn build_segment(
                 values[4] * 1_000.0,
                 values[5] * 1_000.0,
             ],
+            acceleration.map(|a| a.map(|value| value * 1_000.0)),
         )?);
     }
     if states
@@ -324,6 +368,19 @@ fn state_component(node: &XmlNode, name: &str, velocity: bool) -> Result<f64> {
     } else {
         convert_distance_to_m(value, unit)
     }
+}
+
+fn state_acceleration_component(node: &XmlNode, name: &str) -> Result<f64> {
+    let child = node
+        .child(name)
+        .ok_or_else(|| SimError::InvalidArgument(format!("OEM XML state vector missing {name}")))?;
+    let value = parse_f64(child.text.trim(), name)?;
+    let unit = child
+        .attributes
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("units"))
+        .map(|(_, value)| value.as_str());
+    convert_acceleration_to_m_per_s2(value, unit)
 }
 
 fn strip_unit(value: &str) -> (String, Option<String>) {

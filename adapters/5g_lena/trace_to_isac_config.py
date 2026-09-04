@@ -9,6 +9,7 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--trace',required=True); ap.add_argument('--row',type=int,default=-1); ap.add_argument('--out',required=True); args=ap.parse_args()
     rows=list(csv.DictReader(Path(args.trace).open(newline='')))
     if not rows or len(rows)>1_000_000: raise SystemExit('trace is empty or too large')
+    if not -len(rows)<=args.row<len(rows): raise SystemExit(f'--row {args.row} is outside 0..{len(rows)-1}')
     row=rows[args.row]
     out={}
     for name in FIELDS:

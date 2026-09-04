@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, SimError, Vec3};
+use crate::{AntennaPatternModel, Result, SimError, Vec3};
 
 const MAX_ENTITIES: usize = 4_096;
 const MAX_TEXT: usize = 4_096;
@@ -28,28 +28,29 @@ impl KinematicState {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Antenna {
     pub gain_dbi: f64,
     pub polarization_loss_db: f64,
     pub cable_loss_db: f64,
+    #[serde(default)]
+    pub pattern: AntennaPatternModel,
 }
 
 impl Antenna {
     pub fn validate(&self) -> Result<()> {
-        if [self.gain_dbi, self.polarization_loss_db, self.cable_loss_db]
+        if ![self.gain_dbi, self.polarization_loss_db, self.cable_loss_db]
             .into_iter()
             .all(f64::is_finite)
-            && self.polarization_loss_db >= 0.0
-            && self.cable_loss_db >= 0.0
+            || self.polarization_loss_db < 0.0
+            || self.cable_loss_db < 0.0
         {
-            Ok(())
-        } else {
-            Err(SimError::InvalidArgument(
+            return Err(SimError::InvalidArgument(
                 "invalid antenna parameters".into(),
-            ))
+            ));
         }
+        self.pattern.validate(self.gain_dbi)
     }
 }
 
@@ -359,6 +360,10 @@ pub struct RadarConfig {
     pub tx_power_dbm: f64,
     pub tx_gain_dbi: f64,
     pub rx_gain_dbi: f64,
+    #[serde(default)]
+    pub tx_pattern: AntennaPatternModel,
+    #[serde(default)]
+    pub rx_pattern: AntennaPatternModel,
     pub noise_figure_db: f64,
     pub system_loss_db: f64,
     pub coherent_time_s: f64,
@@ -373,6 +378,8 @@ impl RadarConfig {
         finite(self.tx_power_dbm)?;
         finite(self.tx_gain_dbi)?;
         finite(self.rx_gain_dbi)?;
+        self.tx_pattern.validate(self.tx_gain_dbi)?;
+        self.rx_pattern.validate(self.rx_gain_dbi)?;
         if !self.noise_figure_db.is_finite() || self.noise_figure_db < 0.0 {
             return Err(SimError::InvalidArgument(
                 "noise_figure_db must be non-negative".into(),
@@ -414,6 +421,10 @@ pub struct IsacConfig {
     pub tx_power_dbm: f64,
     pub tx_gain_dbi: f64,
     pub rx_gain_dbi: f64,
+    #[serde(default)]
+    pub tx_pattern: AntennaPatternModel,
+    #[serde(default)]
+    pub rx_pattern: AntennaPatternModel,
     pub noise_figure_db: f64,
     pub system_loss_db: f64,
 }
@@ -446,6 +457,8 @@ impl IsacConfig {
         finite(self.tx_power_dbm)?;
         finite(self.tx_gain_dbi)?;
         finite(self.rx_gain_dbi)?;
+        self.tx_pattern.validate(self.tx_gain_dbi)?;
+        self.rx_pattern.validate(self.rx_gain_dbi)?;
         if !self.noise_figure_db.is_finite() || self.noise_figure_db < 0.0 {
             return Err(SimError::InvalidArgument(
                 "noise_figure_db must be non-negative".into(),
@@ -549,9 +562,14 @@ impl Scenario {
         for value in &self.targets {
             value.validate()?;
         }
+        reject_duplicate_ids("emitter", self.emitters.iter().map(|value| value.id.as_str()))?;
+        reject_duplicate_ids("receiver", self.receivers.iter().map(|value| value.id.as_str()))?;
+        reject_duplicate_ids("target", self.targets.iter().map(|value| value.id.as_str()))?;
         if let Some(job) = &self.sigint_job {
             validate_id(&job.emitter_id)?;
             validate_id(&job.receiver_id)?;
+            self.emitter(&job.emitter_id)?;
+            self.receiver(&job.receiver_id)?;
             if job.samples == 0 || job.samples > 16_384 {
                 return Err(SimError::DimensionLimit {
                     actual: job.samples,
@@ -562,6 +580,8 @@ impl Scenario {
         if let Some(job) = &self.cuas_job {
             validate_id(&job.sensor_id)?;
             validate_id(&job.target_id)?;
+            self.receiver(&job.sensor_id)?;
+            self.target(&job.target_id)?;
             job.radar.validate()?;
             if let Some(isac) = &job.isac {
                 isac.validate()?;
@@ -588,6 +608,18 @@ impl Scenario {
             .find(|v| v.id == id)
             .ok_or_else(|| SimError::NotFound(format!("target {id}")))
     }
+}
+
+fn reject_duplicate_ids<'a>(kind: &str, ids: impl Iterator<Item = &'a str>) -> Result<()> {
+    let mut seen = std::collections::BTreeSet::new();
+    for id in ids {
+        if !seen.insert(id) {
+            return Err(SimError::InvalidArgument(format!(
+                "duplicate {kind} identifier {id}"
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_id(value: &str) -> Result<()> {

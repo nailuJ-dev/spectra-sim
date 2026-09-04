@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    simulate_monostatic_radar, wavelength_m, Environment, IsacConfig, KinematicState, RadarConfig,
-    RadarMeasurement, Result, Target, SPEED_OF_LIGHT_MPS,
+    simulate_monostatic_radar_with_propagation, wavelength_m, DeterministicRng, Environment,
+    IsacConfig, KinematicState, PropagationModel, RadarConfig, RadarMeasurement, Result, Target,
+    SPEED_OF_LIGHT_MPS,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,7 +25,27 @@ pub fn simulate_isac(
     config: &IsacConfig,
     environment: Environment,
 ) -> Result<IsacMeasurement> {
+    let mut rng = DeterministicRng::new(0);
+    simulate_isac_with_propagation(
+        sensor,
+        target,
+        config,
+        environment,
+        PropagationModel::FreeSpace,
+        &mut rng,
+    )
+}
+
+pub fn simulate_isac_with_propagation(
+    sensor: KinematicState,
+    target: &Target,
+    config: &IsacConfig,
+    environment: Environment,
+    propagation: PropagationModel,
+    rng: &mut DeterministicRng,
+) -> Result<IsacMeasurement> {
     config.validate()?;
+    propagation.validate()?;
     let symbol_duration = 1.0 / config.subcarrier_spacing_hz;
     let coherent_time = symbol_duration * config.symbols as f64;
     let radar_config = RadarConfig {
@@ -33,13 +54,22 @@ pub fn simulate_isac(
         tx_power_dbm: config.tx_power_dbm,
         tx_gain_dbi: config.tx_gain_dbi,
         rx_gain_dbi: config.rx_gain_dbi,
+        tx_pattern: config.tx_pattern.clone(),
+        rx_pattern: config.rx_pattern.clone(),
         noise_figure_db: config.noise_figure_db,
         system_loss_db: config.system_loss_db,
         coherent_time_s: coherent_time,
         array_elements: config.array_elements,
         element_spacing_lambda: config.element_spacing_lambda,
     };
-    let radar = simulate_monostatic_radar(sensor, target, &radar_config, environment)?;
+    let radar = simulate_monostatic_radar_with_propagation(
+        sensor,
+        target,
+        &radar_config,
+        environment,
+        propagation,
+        rng,
+    )?;
     let lambda = wavelength_m(config.carrier_frequency_hz)?;
     let nominal_unambiguous_range = SPEED_OF_LIGHT_MPS / (2.0 * config.subcarrier_spacing_hz);
     let velocity_resolution = lambda / (2.0 * coherent_time);

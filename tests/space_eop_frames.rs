@@ -150,3 +150,34 @@ fn celestial_pole_offsets_materially_change_the_gcrf_itrf_transform() {
     .sqrt();
     assert!(separation > 0.1);
 }
+
+
+#[test]
+fn utc_leap_second_preserves_si_second_spacing() {
+    let before =
+        AbsoluteEpoch::from_calendar(2016, 12, 31, 23, 59, 59.0, TimeScale::Utc).unwrap();
+    let leap =
+        AbsoluteEpoch::from_calendar(2016, 12, 31, 23, 59, 60.0, TimeScale::Utc).unwrap();
+    let after =
+        AbsoluteEpoch::from_calendar(2017, 1, 1, 0, 0, 0.0, TimeScale::Utc).unwrap();
+
+    assert!((leap.seconds_since(&before, None).unwrap() - 1.0).abs() < 1e-6);
+    assert!((after.seconds_since(&leap, None).unwrap() - 1.0).abs() < 1e-6);
+    assert!((after.seconds_since(&before, None).unwrap() - 2.0).abs() < 1e-6);
+}
+
+#[test]
+fn finals2000a_skips_incomplete_prediction_tail_rows() {
+    let first = finals_line(60919.0, 0.10, 0.20, 0.050, 1.0, 2.0, -3.0);
+    let second = finals_line(60920.0, 0.12, 0.24, 0.070, 3.0, 4.0, -5.0);
+    let mut incomplete = finals_line(60921.0, 0.14, 0.26, 0.080, 4.0, 5.0, -6.0).into_bytes();
+    for byte in &mut incomplete[79..86] {
+        *byte = b' ';
+    }
+    let text = format!(
+        "{first}\n{second}\n{}\n",
+        String::from_utf8(incomplete).unwrap()
+    );
+    let table = EopTable::from_finals2000a(&text).unwrap();
+    assert_eq!(table.samples().len(), 2);
+}

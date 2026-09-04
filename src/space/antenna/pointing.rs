@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, SimError};
+use crate::{Antenna, KinematicState, Result, SimError, Vec3};
 
 use super::{ecef_delta_to_enu, GroundStation};
 
@@ -10,6 +10,13 @@ pub struct AzElRange {
     pub elevation_rad: f64,
     pub range_m: f64,
     pub visible: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BodyDirection {
+    pub off_axis_rad: f64,
+    pub horizontal_angle_rad: f64,
+    pub vertical_angle_rad: f64,
 }
 
 pub fn ground_station_az_el_range(
@@ -60,4 +67,97 @@ pub fn off_axis_angle_rad(boresight_unit: [f64; 3], target_unit: [f64; 3]) -> Re
         + boresight_unit[2] * target_unit[2])
         / (a * b);
     Ok(dot.clamp(-1.0, 1.0).acos())
+}
+
+/// Expresses a line of sight in the platform body frame.
+///
+/// Terrestrial attitude convention:
+/// - ENU world axes: +x East, +y North, +z Up;
+/// - yaw is heading clockwise from North;
+/// - pitch is positive nose-up;
+/// - roll is positive right-wing-down;
+/// - antenna boresight is body +X/forward.
+pub fn target_direction_in_body(
+    state: KinematicState,
+    target_position_enu_m: Vec3,
+) -> Result<BodyDirection> {
+    state.validate()?;
+    target_position_enu_m.validate()?;
+    let los = target_position_enu_m
+        .sub_vec(state.position_enu_m)
+        .normalized()?;
+
+    let yaw = state.yaw_deg.to_radians();
+    let pitch = state.pitch_deg.to_radians();
+    let roll = state.roll_deg.to_radians();
+    let (sin_yaw, cos_yaw) = yaw.sin_cos();
+    let (sin_pitch, cos_pitch) = pitch.sin_cos();
+    let (sin_roll, cos_roll) = roll.sin_cos();
+
+    let forward = Vec3 {
+        x: sin_yaw * cos_pitch,
+        y: cos_yaw * cos_pitch,
+        z: sin_pitch,
+    };
+    let right_zero = Vec3 {
+        x: cos_yaw,
+        y: -sin_yaw,
+        z: 0.0,
+    };
+    let up_zero = right_zero.cross(forward).normalized()?;
+
+    // Positive aerospace roll rotates the right axis downward.
+    let right = right_zero
+        .scale(cos_roll)
+        .sub_vec(up_zero.scale(sin_roll));
+    let up = up_zero
+        .scale(cos_roll)
+        .add_vec(right_zero.scale(sin_roll));
+
+    let forward_component = los.dot(forward);
+    let right_component = los.dot(right);
+    let up_component = los.dot(up);
+    let off_axis = forward_component.clamp(-1.0, 1.0).acos();
+    let horizontal = right_component.atan2(forward_component);
+    let vertical = up_component.atan2(forward_component);
+
+    Ok(BodyDirection {
+        off_axis_rad: off_axis,
+        horizontal_angle_rad: horizontal,
+        vertical_angle_rad: vertical,
+    })
+}
+
+pub fn effective_directional_gain_dbi(
+    antenna: &Antenna,
+    state: KinematicState,
+    target_position_enu_m: Vec3,
+    frequency_hz: f64,
+) -> Result<f64> {
+    antenna.validate()?;
+    let direction = target_direction_in_body(state, target_position_enu_m)?;
+    antenna.pattern.gain_dbi(
+        antenna.gain_dbi,
+        direction.off_axis_rad,
+        direction.horizontal_angle_rad,
+        direction.vertical_angle_rad,
+        frequency_hz,
+    )
+}
+
+pub fn configured_directional_gain_dbi(
+    boresight_gain_dbi: f64,
+    pattern: &super::AntennaPatternModel,
+    state: KinematicState,
+    target_position_enu_m: Vec3,
+    frequency_hz: f64,
+) -> Result<f64> {
+    let direction = target_direction_in_body(state, target_position_enu_m)?;
+    pattern.gain_dbi(
+        boresight_gain_dbi,
+        direction.off_axis_rad,
+        direction.horizontal_angle_rad,
+        direction.vertical_angle_rad,
+        frequency_hz,
+    )
 }
