@@ -24,7 +24,7 @@ sha2 = "0.10"
 thiserror = "2"
 sgp4 = "=2.4.0"
 sofars = "=0.6.1"
-quick-xml = "=0.41.0"
+quick-xml = "=0.42.0"
 
 [profile.release]
 lto = "thin"
