@@ -23,7 +23,7 @@ serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
 sgp4 = "=2.4.0"
-sofars = "=0.6.1"
+sofars = "=0.6.2"
 quick-xml = "=0.41.0"
 
 [profile.release]
