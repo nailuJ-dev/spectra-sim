@@ -18,6 +18,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 spectra-sim = { path = "../..", default-features = false }
-pyo3 = { version = "0.23", features = ["abi3-py39"] }
-numpy = "0.23"
+pyo3 = { version = "0.29", features = ["abi3-py39"] }
+numpy = "0.29"
 serde_json = "1"

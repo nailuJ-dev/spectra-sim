@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "spectra-sim"
-version = "0.4.1"
+dynamic = ["version"]
 description = "Deterministic physics-based RF, radar, ISAC and space-link simulation toolkit"
 readme = "README.md"
 requires-python = ">=3.9"

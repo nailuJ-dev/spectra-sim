@@ -54,8 +54,7 @@ jobs:
           python-version: "3.12"
       - run: python -m venv .venv-bindings
       - run: .venv-bindings/bin/pip install --disable-pip-version-check maturin pytest numpy
-      - run: .venv-bindings/bin/maturin develop
-        working-directory: bindings/python
+      - run: .venv-bindings/bin/maturin develop -m bindings/python/Cargo.toml
         env:
           VIRTUAL_ENV: ${{ github.workspace }}/.venv-bindings
       - run: .venv-bindings/bin/pytest bindings/python/tests

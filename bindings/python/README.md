@@ -47,12 +47,17 @@ as the CLI does. Library errors become `ValueError` (I/O errors become
 - The native extension is `spectra_sim._spectra_sim` (cdylib lib name
   `_spectra_sim`, to avoid clashing with the `spectra_sim` library crate it
   depends on); the pure-Python package `spectra_sim` in `python/` re-exports it.
-- `pyo3 = "0.23"` (resolved 0.23.5) and `numpy = "0.23"` (resolved 0.23.0)
-  compile on the pinned Rust 1.85.0 and support Python 3.13, so no lower pin or
-  newer line was needed. The extension is built with `abi3-py39`, one wheel per
+- `pyo3 = "0.29"` (resolved 0.29.3) and `numpy = "0.29"` (resolved 0.29.0)
+  compile on the pinned Rust 1.85.0 and support Python 3.13. Older lines were
+  rejected by `cargo audit`: pyo3 < 0.24.1 has RUSTSEC-2025-0020 and
+  pyo3 < 0.29 has RUSTSEC-2026-0176/0177. No advisory is ignored. The extension is built with `abi3-py39`, one wheel per
   platform for Python >= 3.9.
 - `pyo3/extension-module` is enabled through `[tool.maturin] features` rather
   than in `Cargo.toml`, so `cargo clippy/test --workspace` links without
   libpython.
-- The crate version must equal the root crate's version (`Cargo.toml` and
-  `pyproject.toml`); the test suite checks `__version__` against the root crate.
+- The package version is taken from `bindings/python/Cargo.toml`
+  (`dynamic = ["version"]` in `pyproject.toml`), which must equal the root
+  crate's version; the test suite checks `__version__` against the root crate.
+- Building an sdist or `pip install` from source needs the core crate (a path
+  dependency on `../..`) bundled alongside; publishing to PyPI is out of scope
+  for now.

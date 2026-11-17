@@ -80,7 +80,7 @@ impl SigintResult {
 #[pyfunction]
 fn run_sigint(py: Python<'_>, scenario_json: &str) -> PyResult<SigintResult> {
     let run = py
-        .allow_threads(|| {
+        .detach(|| {
             let scenario = parse_scenario(scenario_json)?;
             spectra_sim::run_sigint(&scenario)
         })
@@ -107,7 +107,7 @@ fn run_sigint(py: Python<'_>, scenario_json: &str) -> PyResult<SigintResult> {
 /// Runs the scenario's C-UAS job and returns the run as a JSON string.
 #[pyfunction]
 fn run_cuas(py: Python<'_>, scenario_json: &str) -> PyResult<String> {
-    py.allow_threads(|| {
+    py.detach(|| {
         let scenario = parse_scenario(scenario_json)?;
         let run = spectra_sim::run_cuas(&scenario)?;
         Ok(serde_json::to_string(&run)?)
@@ -141,7 +141,7 @@ fn verify_replay(
         }
     };
     let verdict = py
-        .allow_threads(|| {
+        .detach(|| {
             let scenario = parse_scenario(scenario_json)?;
             let manifest = parse_manifest(manifest_json)?;
             spectra_sim::verify_replay(&scenario, &manifest, kind)

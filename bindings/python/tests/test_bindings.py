@@ -111,5 +111,5 @@ def test_validate_accepts_examples(path):
 
 
 def test_oversized_scenario_rejected():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="dimension limit exceeded"):
         spectra_sim.validate(" " * (32 * 1024 * 1024 + 1))
