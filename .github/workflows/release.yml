@@ -25,9 +25,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Tag must match Cargo.toml and sidecar pom.xml versions
         run: |
           set -euo pipefail
+          if ! [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::tag must look like vX.Y.Z or vX.Y.Z-prerelease"
+            exit 1
+          fi
           crate_version="$(cargo metadata --no-deps --format-version 1 --locked | python3 -c '
           import json, sys
           meta = json.load(sys.stdin)
@@ -80,8 +86,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@1.85.0
-      - uses: Swatinem/rust-cache@v2
+      # No rust-cache / maven cache in this workflow: release artifacts are built from a clean state.
       - run: cargo build --release --locked
       - name: Compute asset name
         shell: bash
@@ -96,6 +104,7 @@ jobs:
         shell: bash
         env:
           BIN: ${{ matrix.bin }}
+          COPYFILE_DISABLE: "1"
         run: |
           set -euo pipefail
           mkdir -p dist "stage/${ASSET}"
@@ -135,12 +144,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-          cache: maven
-          cache-dependency-path: orekit-sidecar/pom.xml
       - run: mvn -B -f orekit-sidecar/pom.xml package
       - name: Collect shaded JAR and checksum
         shell: bash
@@ -166,13 +175,15 @@ jobs:
           if-no-files-found: error
 
   docker:
-    needs: verify-tag
+    needs: [verify-tag, binaries, sidecar]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Compute lowercase image name
         id: image
         shell: bash
@@ -198,7 +209,14 @@ jobs:
           tags: |
             type=raw,value=${{ github.ref_name }}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+          # Set explicitly so metadata-action does not derive a different licenses value.
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0 OR MIT
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
       - uses: docker/build-push-action@v6
+        env:
+          # Keep the *.dockerbuild build-record artifact out of the workflow's artifacts.
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           push: true
@@ -214,6 +232,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: "{binaries-*,sidecar}"
           merge-multiple: true
       - name: List release assets
         run: ls -l dist

@@ -10,3 +10,5 @@ bindings/python/target
 **/__pycache__
 **/.venv*
 **/*.so
+.env
+*.log
