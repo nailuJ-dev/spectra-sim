@@ -3,7 +3,7 @@ unmaintained = "workspace"
 yanked = "deny"
 
 [licenses]
-allow = ["MIT", "Apache-2.0", "Unicode-3.0"]
+allow = ["MIT", "Apache-2.0", "Unicode-3.0", "BSD-2-Clause", "Apache-2.0 WITH LLVM-exception"]
 confidence-threshold = 0.93
 
 [bans]

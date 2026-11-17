@@ -1,0 +1,23 @@
+[package]
+name = "spectra-sim-python"
+# Keep in lock-step with the root crate's version (checked by the pytest suite).
+version = "0.4.1"
+edition = "2021"
+rust-version = "1.85"
+license = "Apache-2.0 OR MIT"
+description = "Python bindings for the spectra-sim simulation toolkit"
+repository = "https://github.com/nailuJ-dev/spectra-sim"
+publish = false
+
+[lib]
+# The native extension is `spectra_sim._spectra_sim`; the pure-Python package
+# `spectra_sim` re-exports it. A distinct lib name avoids clashing with the
+# `spectra_sim` library crate this one depends on.
+name = "_spectra_sim"
+crate-type = ["cdylib"]
+
+[dependencies]
+spectra-sim = { path = "../..", default-features = false }
+pyo3 = { version = "0.23", features = ["abi3-py39"] }
+numpy = "0.23"
+serde_json = "1"

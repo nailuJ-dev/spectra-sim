@@ -9,6 +9,9 @@ repository = "https://github.com/nailuJ-dev/spectra-sim"
 keywords = ["rf", "radar", "isac", "simulation", "space"]
 categories = ["simulation", "science"]
 
+[workspace]
+members = ["bindings/python"]
+
 [lib]
 name = "spectra_sim"
 path = "src/lib.rs"

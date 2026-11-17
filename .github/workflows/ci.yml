@@ -43,6 +43,23 @@ jobs:
       - run: python3 adapters/5g_lena/trace_to_isac_config.py --trace adapters/5g_lena/example_nr_trace.csv --out /tmp/isac_config.json
       - run: python3 adapters/sionna_rt/simulate_iq_from_cir.py --scenario examples/scenarios/sigint_urban.json --cir adapters/sionna_rt/example_cir.json --out /tmp/sionna_iq.json
 
+  python-bindings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m venv .venv-bindings
+      - run: .venv-bindings/bin/pip install --disable-pip-version-check maturin pytest numpy
+      - run: .venv-bindings/bin/maturin develop
+        working-directory: bindings/python
+        env:
+          VIRTUAL_ENV: ${{ github.workspace }}/.venv-bindings
+      - run: .venv-bindings/bin/pytest bindings/python/tests
+
   supply-chain:
     runs-on: ubuntu-latest
     steps:
