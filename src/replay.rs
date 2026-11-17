@@ -3,6 +3,13 @@ use sha2::{Digest, Sha256};
 
 use crate::{Result, Scenario};
 
+/// Version of the serialized output contract that `output_sha256` covers.
+pub const OUTPUT_SCHEMA_VERSION: &str = "spectra-sim-output-v1";
+
+fn legacy_output_schema() -> String {
+    "unversioned".into()
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReplayManifest {
@@ -11,6 +18,8 @@ pub struct ReplayManifest {
     pub scenario_sha256: String,
     pub output_sha256: String,
     pub simulator_version: String,
+    #[serde(default = "legacy_output_schema")]
+    pub output_schema_version: String,
 }
 
 pub fn canonical_sha256<T: Serialize>(value: &T) -> Result<String> {
@@ -26,6 +35,7 @@ pub fn replay_manifest<T: Serialize>(scenario: &Scenario, output: &T) -> Result<
         scenario_sha256: canonical_sha256(scenario)?,
         output_sha256: canonical_sha256(output)?,
         simulator_version: env!("CARGO_PKG_VERSION").into(),
+        output_schema_version: OUTPUT_SCHEMA_VERSION.into(),
     })
 }
 
