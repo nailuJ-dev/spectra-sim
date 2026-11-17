@@ -8,6 +8,7 @@ pub const SPEED_OF_LIGHT_MPS: f64 = 299_792_458.0;
 pub const BOLTZMANN_J_PER_K: f64 = 1.380_649e-23;
 pub const REFERENCE_IMPEDANCE_OHM: f64 = 50.0;
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Vec3 {

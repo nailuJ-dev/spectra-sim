@@ -10,6 +10,7 @@ fn legacy_output_schema() -> String {
     "unversioned".into()
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReplayManifest {

@@ -1,0 +1,536 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "CandidateOut": {
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "$ref": "#/definitions/PositionGeo"
+        },
+        "timestamp_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "velocity": {
+          "$ref": "#/definitions/VelocityNed"
+        }
+      },
+      "required": [
+        "position",
+        "timestamp_ms",
+        "velocity"
+      ],
+      "type": "object"
+    },
+    "CooperativeTrackOut": {
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/PositionGeo"
+        },
+        "source_confidence": {
+          "format": "float",
+          "type": "number"
+        },
+        "timestamp_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "velocity": {
+          "$ref": "#/definitions/VelocityNed"
+        }
+      },
+      "required": [
+        "identity",
+        "kind",
+        "position",
+        "source_confidence",
+        "timestamp_ms",
+        "velocity"
+      ],
+      "type": "object"
+    },
+    "GoldenCuasScenarioOut": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CandidateOut"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cooperative_tracks": {
+          "items": {
+            "$ref": "#/definitions/CooperativeTrackOut"
+          },
+          "type": "array"
+        },
+        "expected_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/definitions/GoldenCuasSourceOut"
+        }
+      },
+      "required": [
+        "cooperative_tracks",
+        "name",
+        "source"
+      ],
+      "type": "object"
+    },
+    "GoldenCuasSourceOut": {
+      "oneOf": [
+        {
+          "properties": {
+            "frame": {
+              "$ref": "#/definitions/RecordedSensorFrameOut"
+            },
+            "source_type": {
+              "enum": [
+                "recorded"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "frame",
+            "source_type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "input": {
+              "$ref": "#/definitions/GoldenIsacRecordedInputOut"
+            },
+            "source_type": {
+              "enum": [
+                "isac_recorded"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "input",
+            "source_type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GoldenIsacRecordedInputOut": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization_token": {
+          "type": "string"
+        },
+        "configuration_token": {
+          "type": "string"
+        },
+        "features": {
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "infrastructure_id": {
+          "type": "string"
+        },
+        "operator_id": {
+          "type": "string"
+        },
+        "timestamp_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "valid_from_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "valid_until_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorization_token",
+        "configuration_token",
+        "features",
+        "infrastructure_id",
+        "operator_id",
+        "timestamp_ms",
+        "valid_from_ms",
+        "valid_until_ms"
+      ],
+      "type": "object"
+    },
+    "IsacMeasurement": {
+      "additionalProperties": false,
+      "properties": {
+        "angle_resolution_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "coherent_time_s": {
+          "format": "double",
+          "type": "number"
+        },
+        "nominal_unambiguous_range_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "radar": {
+          "$ref": "#/definitions/RadarMeasurement"
+        },
+        "radial_velocity_resolution_mps": {
+          "format": "double",
+          "type": "number"
+        },
+        "range_resolution_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "subcarrier_spacing_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "symbols": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "angle_resolution_deg",
+        "coherent_time_s",
+        "nominal_unambiguous_range_m",
+        "radar",
+        "radial_velocity_resolution_mps",
+        "range_resolution_m",
+        "subcarrier_spacing_hz",
+        "symbols"
+      ],
+      "type": "object"
+    },
+    "PositionGeo": {
+      "additionalProperties": false,
+      "properties": {
+        "altitude_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "latitude_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "longitude_deg": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "altitude_m",
+        "latitude_deg",
+        "longitude_deg"
+      ],
+      "type": "object"
+    },
+    "RadarMeasurement": {
+      "additionalProperties": false,
+      "properties": {
+        "angle_resolution_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "azimuth_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "doppler_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "doppler_spread_hz": {
+          "format": "float",
+          "type": "number"
+        },
+        "elevation_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "micro_doppler_index": {
+          "format": "float",
+          "type": "number"
+        },
+        "propagation_excess_loss_db": {
+          "description": "Round-trip excess propagation loss beyond the classical free-space R^4 radar equation. It includes explicit environmental excess loss and the selected scenario propagation model on both legs.",
+          "format": "double",
+          "type": "number"
+        },
+        "radial_velocity_mps": {
+          "format": "double",
+          "type": "number"
+        },
+        "range_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "range_resolution_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "rcs_m2": {
+          "format": "double",
+          "type": "number"
+        },
+        "received_power_dbm": {
+          "format": "double",
+          "type": "number"
+        },
+        "rx_effective_gain_dbi": {
+          "format": "double",
+          "type": "number"
+        },
+        "snr_db": {
+          "format": "float",
+          "type": "number"
+        },
+        "tx_effective_gain_dbi": {
+          "format": "double",
+          "type": "number"
+        },
+        "velocity_resolution_mps": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "angle_resolution_deg",
+        "azimuth_deg",
+        "doppler_hz",
+        "doppler_spread_hz",
+        "elevation_deg",
+        "micro_doppler_index",
+        "propagation_excess_loss_db",
+        "radial_velocity_mps",
+        "range_m",
+        "range_resolution_m",
+        "rcs_m2",
+        "received_power_dbm",
+        "rx_effective_gain_dbi",
+        "snr_db",
+        "tx_effective_gain_dbi",
+        "velocity_resolution_mps"
+      ],
+      "type": "object"
+    },
+    "RecordedSensorFrameOut": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "measurements": {
+          "$ref": "#/definitions/ReferenceSensorMeasurementsOut"
+        },
+        "sensor_id": {
+          "type": "string"
+        },
+        "timestamp_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "measurements",
+        "sensor_id",
+        "timestamp_ms"
+      ],
+      "type": "object"
+    },
+    "ReferenceSensorMeasurementsOut": {
+      "additionalProperties": false,
+      "properties": {
+        "angular_rate_dps": {
+          "format": "float",
+          "type": "number"
+        },
+        "azimuth_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "burstiness": {
+          "format": "float",
+          "type": "number"
+        },
+        "doppler_spread_hz": {
+          "format": "float",
+          "type": "number"
+        },
+        "elevation_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "micro_doppler_index": {
+          "format": "float",
+          "type": "number"
+        },
+        "radial_velocity_mps": {
+          "format": "double",
+          "type": "number"
+        },
+        "range_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "rcs_proxy": {
+          "format": "float",
+          "type": "number"
+        },
+        "rf_energy": {
+          "format": "float",
+          "type": "number"
+        },
+        "snr_db": {
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "angular_rate_dps",
+        "azimuth_deg",
+        "burstiness",
+        "doppler_spread_hz",
+        "elevation_deg",
+        "micro_doppler_index",
+        "radial_velocity_mps",
+        "range_m",
+        "rcs_proxy",
+        "rf_energy",
+        "snr_db"
+      ],
+      "type": "object"
+    },
+    "ReplayManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "output_schema_version": {
+          "default": "unversioned",
+          "type": "string"
+        },
+        "output_sha256": {
+          "type": "string"
+        },
+        "scenario_sha256": {
+          "type": "string"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "seed": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "simulator_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "output_sha256",
+        "scenario_sha256",
+        "schema_version",
+        "seed",
+        "simulator_version"
+      ],
+      "type": "object"
+    },
+    "VelocityNed": {
+      "additionalProperties": false,
+      "properties": {
+        "down_mps": {
+          "format": "double",
+          "type": "number"
+        },
+        "east_mps": {
+          "format": "double",
+          "type": "number"
+        },
+        "north_mps": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "down_mps",
+        "east_mps",
+        "north_mps"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "isac_measurement": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/IsacMeasurement"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "isac_scenario": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/GoldenCuasScenarioOut"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "manifest": {
+      "$ref": "#/definitions/ReplayManifest"
+    },
+    "radar_measurement": {
+      "$ref": "#/definitions/RadarMeasurement"
+    },
+    "recorded_scenario": {
+      "$ref": "#/definitions/GoldenCuasScenarioOut"
+    }
+  },
+  "required": [
+    "manifest",
+    "radar_measurement",
+    "recorded_scenario"
+  ],
+  "title": "CuasRun",
+  "type": "object"
+}

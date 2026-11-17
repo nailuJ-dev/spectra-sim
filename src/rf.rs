@@ -5,6 +5,7 @@ use crate::{
     DeterministicRng, Emitter, Environment, PropagationModel, Receiver, Result, SimError, Waveform,
 };
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IqSampleOut {
@@ -12,6 +13,7 @@ pub struct IqSampleOut {
     pub q: f32,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IqCaptureOut {
@@ -26,6 +28,7 @@ pub struct IqCaptureOut {
     pub samples: Vec<IqSampleOut>,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SigintTruth {
@@ -47,6 +50,7 @@ pub struct SigintTruth {
     pub seed: u64,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SigintSimulation {

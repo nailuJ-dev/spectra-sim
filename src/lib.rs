@@ -15,6 +15,8 @@ pub mod randomization;
 pub mod replay;
 pub mod rf;
 pub mod rng;
+#[cfg(feature = "schema")]
+pub mod schema;
 pub mod simulator;
 pub mod space;
 pub mod validity;
@@ -37,6 +39,8 @@ pub use randomization::*;
 pub use replay::*;
 pub use rf::*;
 pub use rng::*;
+#[cfg(feature = "schema")]
+pub use schema::{cuas_run_schema, scenario_schema, sigint_run_schema};
 pub use simulator::*;
 pub use space::*;
 pub use validity::*;

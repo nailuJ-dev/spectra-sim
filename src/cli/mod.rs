@@ -3,6 +3,8 @@
 mod examples;
 mod io;
 mod replay_cmd;
+#[cfg(feature = "schema")]
+mod schema_cmd;
 mod sweep;
 mod validate;
 
@@ -132,6 +134,13 @@ enum Command {
         #[command(subcommand)]
         action: ExamplesAction,
     },
+    /// Print the JSON Schema of a scenario file or a run output.
+    #[cfg(feature = "schema")]
+    Schema {
+        /// Which schema to print.
+        #[arg(value_enum)]
+        kind: schema_cmd::SchemaKind,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -211,6 +220,8 @@ fn dispatch(command: Command) -> Result<()> {
             ExamplesAction::List => examples::run_list(),
             ExamplesAction::Show { name } => examples::run_show(&name),
         },
+        #[cfg(feature = "schema")]
+        Command::Schema { kind } => schema_cmd::run(kind),
     }
 }
 

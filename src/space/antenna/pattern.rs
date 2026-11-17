@@ -124,6 +124,7 @@ impl AntennaPattern for TabulatedAntennaPattern {
 /// The legacy scalar `gain_dbi` remains the boresight gain. Pattern values are
 /// applied relative to that gain, except `floor_gain_dbi`, which is an absolute
 /// lower gain bound.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AntennaPatternModel {
