@@ -159,9 +159,28 @@ fn titles_are_escaped() {
     for svg in all_svgs(&capture) {
         assert!(!svg.contains("<a&"), "unescaped id");
     }
+    // The id is shown in the constellation title, escaped.
+    let svg = constellation_svg(&capture, 2000);
+    assert!(svg.contains("&lt;a&amp;&quot;b&quot;&gt;"), "{svg}");
     let svg = timeline_svg("x<y & z", "\"u\"", &[(0.0, 0.0), (1.0, 1.0)]);
     assert!(svg.contains("x&lt;y &amp; z"));
     assert!(svg.contains("&quot;u&quot;"));
+}
+
+#[test]
+fn control_characters_in_text_are_replaced() {
+    let mut capture = tone(64);
+    capture.id = "a\u{1}b\u{8}c\u{b}d\u{c}e\u{1f}f\u{fffe}g\u{ffff}h\ti\nj".to_string();
+    let svgs = all_svgs(&capture);
+    for svg in &svgs {
+        assert!(
+            !svg.chars().any(|c| matches!(c,
+                '\u{0}'..='\u{8}' | '\u{b}' | '\u{c}' | '\u{e}'..='\u{1f}' | '\u{fffe}' | '\u{ffff}'
+            )),
+            "XML-illegal character in output"
+        );
+    }
+    assert!(svgs[0].contains("a\u{fffd}b\u{fffd}c\u{fffd}d\u{fffd}e\u{fffd}f\u{fffd}g\u{fffd}h"));
 }
 
 fn unique_dir(test: &str) -> PathBuf {
@@ -229,5 +248,48 @@ fn plot_cli_rejects_bad_fft_and_missing_file() {
     assert!(!plots.exists(), "nothing written on invalid fft");
     let missing = run_cli(&["plot", &dir.join("nope.json").to_string_lossy()]);
     assert_eq!(missing.status.code(), Some(3));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn plot_cli_capture_errors_name_the_file() {
+    let dir = unique_dir("badrate");
+    let mut capture = tone(64);
+    capture.sample_rate_hz = 0.0;
+    let path = dir.join("bad_capture.json");
+    std::fs::write(
+        &path,
+        serde_json::to_vec(&capture).unwrap_or_else(|e| panic!("serialize: {e}")),
+    )
+    .unwrap_or_else(|e| panic!("write: {e}"));
+    let plots = dir.join("plots");
+    let output = run_cli(&[
+        "plot",
+        &path.to_string_lossy(),
+        "--out",
+        &plots.to_string_lossy(),
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(&*path.to_string_lossy()), "stderr={stderr}");
+    assert!(stderr.contains("sample_rate_hz"), "stderr={stderr}");
+    assert!(!plots.exists(), "nothing written on invalid capture");
+
+    // An --fft error does not mention the capture path.
+    let good = sigint_capture(&dir);
+    let output = run_cli(&[
+        "plot",
+        &good.to_string_lossy(),
+        "--out",
+        &plots.to_string_lossy(),
+        "--fft",
+        "100",
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains(&*good.to_string_lossy()),
+        "stderr={stderr}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }

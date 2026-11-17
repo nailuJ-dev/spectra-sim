@@ -33,6 +33,14 @@ pub(crate) fn escape_xml(text: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&apos;"),
+            // Characters outside the XML 1.0 `Char` production would make the
+            // document ill-formed; show the replacement character instead.
+            '\u{0}'..='\u{8}'
+            | '\u{b}'
+            | '\u{c}'
+            | '\u{e}'..='\u{1f}'
+            | '\u{fffe}'
+            | '\u{ffff}' => out.push('\u{fffd}'),
             _ => out.push(c),
         }
     }
@@ -454,7 +462,9 @@ fn check_fft_len(fft_len: usize) -> Result<()> {
     Ok(())
 }
 
-fn check_rates(capture: &IqCaptureOut) -> Result<()> {
+/// Checks that the capture's sample rate is positive and finite and its centre
+/// frequency is finite, the preconditions of the spectral plots.
+pub fn check_rates(capture: &IqCaptureOut) -> Result<()> {
     if !(capture.sample_rate_hz.is_finite() && capture.sample_rate_hz > 0.0) {
         return Err(SimError::InvalidArgument(format!(
             "sample_rate_hz must be positive and finite, got {}",
@@ -789,6 +799,16 @@ mod tests {
         let one = power_spectrum_db(&[IqSampleOut { i: 1.0, q: 0.0 }], 64);
         assert_eq!(one.len(), 64);
         assert!(one.iter().all(|v| v.is_finite() && *v >= DB_FLOOR));
+    }
+
+    #[test]
+    fn escape_xml_replaces_xml_illegal_characters() {
+        assert_eq!(
+            escape_xml("a\u{1}b\u{fffe}c\u{ffff}d"),
+            "a\u{fffd}b\u{fffd}c\u{fffd}d"
+        );
+        // Tab, newline and carriage return are legal XML and kept.
+        assert_eq!(escape_xml("a\tb\nc\rd"), "a\tb\nc\rd");
     }
 
     #[test]

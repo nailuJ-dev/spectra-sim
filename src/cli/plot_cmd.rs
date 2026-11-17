@@ -3,8 +3,8 @@
 use std::fs;
 use std::path::Path;
 
-use spectra_sim::viz::{constellation_svg, spectrogram_svg, spectrum_svg};
-use spectra_sim::{IqCaptureOut, Result};
+use spectra_sim::viz::{check_rates, constellation_svg, spectrogram_svg, spectrum_svg};
+use spectra_sim::{IqCaptureOut, Result, SimError};
 
 use super::io::{ensure_dir, io_with_path, read_json};
 
@@ -18,6 +18,13 @@ const MAX_SPECTROGRAM_CELLS: usize = 4096;
 /// leaves the output directory untouched.
 pub fn run(capture_path: &Path, out: &Path, fft: usize) -> Result<()> {
     let capture: IqCaptureOut = read_json(capture_path)?;
+    // Problems in the capture's own contents name the file; `--fft` errors do not.
+    check_rates(&capture).map_err(|error| match error {
+        SimError::InvalidArgument(message) => {
+            SimError::InvalidArgument(format!("{}: {message}", capture_path.display()))
+        }
+        other => other,
+    })?;
     let plots = [
         (
             "constellation.svg",

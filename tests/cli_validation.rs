@@ -864,10 +864,19 @@ fn single_run_unwritable_output_exits_3_naming_it() {
     assert!(stderr.contains(nested_arg), "stderr={stderr}");
 }
 
-fn assert_validity_report(path: &std::path::Path) {
+fn assert_validity_report(path: &std::path::Path, model_name: &str) {
     let report = std::fs::read_to_string(path).expect("validity report exists");
     assert!(report.contains("# Physics validity report"), "{report}");
     assert!(report.contains("synthetic data"), "{report}");
+    assert!(
+        report.contains("only the propagation model is assessed"),
+        "{report}"
+    );
+    let row = report
+        .lines()
+        .find(|line| line.starts_with(&format!("| {model_name} ")))
+        .unwrap_or_else(|| panic!("no table row for {model_name}: {report}"));
+    assert!(row.contains("validated_with_warnings"), "{row}");
 }
 
 #[test]
@@ -875,7 +884,8 @@ fn cli_writes_validity_report() {
     let sigint = TempDir::new("validity-report-sigint");
     let output = run_cli(&["sigint", SIGINT_SCENARIO, "--out", sigint.arg()]);
     assert_eq!(output.status.code(), Some(0), "{output:?}");
-    assert_validity_report(&sigint.path().join("validity_report.md"));
+    // sigint_urban uses Rician fading.
+    assert_validity_report(&sigint.path().join("validity_report.md"), "rician");
 
     let cuas = TempDir::new("validity-report-cuas");
     let output = run_cli(&[
@@ -885,7 +895,8 @@ fn cli_writes_validity_report() {
         cuas.arg(),
     ]);
     assert_eq!(output.status.code(), Some(0), "{output:?}");
-    assert_validity_report(&cuas.path().join("validity_report.md"));
+    // cuas_drone_isac uses the two-ray model.
+    assert_validity_report(&cuas.path().join("validity_report.md"), "two_ray");
 }
 
 #[test]

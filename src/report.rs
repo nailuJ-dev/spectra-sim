@@ -36,7 +36,12 @@ fn severity_label(severity: ValiditySeverity) -> &'static str {
 
 /// Escapes characters that would break a Markdown table cell.
 fn escape_cell(text: &str) -> String {
-    text.replace('|', "\\|").replace(['\n', '\r'], " ")
+    flatten(text).replace('|', "\\|")
+}
+
+/// Maps line breaks to spaces so the text stays on a single Markdown line.
+fn flatten(text: &str) -> String {
+    text.replace(['\n', '\r'], " ")
 }
 
 fn validity_range(
@@ -94,8 +99,8 @@ pub fn validity_report_markdown(ledger: &ValidityLedger) -> String {
                 out,
                 "- {} — {}: {}",
                 severity_label(issue.severity),
-                issue.component,
-                issue.message
+                flatten(&issue.component),
+                flatten(&issue.message)
             );
         }
     }
@@ -134,6 +139,11 @@ pub fn scenario_validity_ledger(scenario: &Scenario) -> ValidityLedger {
     ledger.push(ValidityIssue::warning(
         "dataset",
         "synthetic data: not field-validated",
+    ));
+    ledger.push(ValidityIssue::warning(
+        "scope",
+        "only the propagation model is assessed; radar, ISAC, antenna-pattern and receiver \
+         models are not catalogued in this report",
     ));
     ledger
 }

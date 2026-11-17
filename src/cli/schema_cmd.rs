@@ -1,4 +1,4 @@
-//! `schema` subcommand: print the JSON Schema of a scenario or run output.
+//! `schema` subcommand: print the JSON Schema of a scenario or an in-memory run result.
 
 use clap::ValueEnum;
 use spectra_sim::{cuas_run_schema, scenario_schema, sigint_run_schema, Result};
@@ -8,9 +8,9 @@ use spectra_sim::{cuas_run_schema, scenario_schema, sigint_run_schema, Result};
 pub enum SchemaKind {
     /// Scenario input file.
     Scenario,
-    /// Result of a SIGINT run.
+    /// In-memory SIGINT run result (simulation + manifest), not a file the CLI writes.
     SigintRun,
-    /// Result of a counter-UAS run.
+    /// In-memory counter-UAS run result (simulation + manifest), not a file the CLI writes.
     CuasRun,
 }
 

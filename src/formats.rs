@@ -33,8 +33,9 @@ pub fn iq_to_npy_bytes(capture: &IqCaptureOut) -> Vec<u8> {
     header.extend(std::iter::repeat_n(' ', padding));
     header.push('\n');
 
-    let mut bytes =
-        Vec::with_capacity(NPY_MAGIC.len() + 2 + header.len() + capture.samples.len() * 8);
+    let mut bytes = Vec::with_capacity(
+        NPY_MAGIC.len() + 2 + header.len() + capture.samples.len().saturating_mul(8),
+    );
     bytes.extend_from_slice(NPY_MAGIC);
     // The header is a few dozen bytes; saturate rather than panic if that ever changes.
     let header_len = u16::try_from(header.len()).unwrap_or(u16::MAX);

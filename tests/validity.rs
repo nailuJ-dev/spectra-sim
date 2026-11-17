@@ -98,6 +98,60 @@ mod report_tests {
     }
 
     #[test]
+    fn scenario_ledger_states_its_scope() {
+        let mut scenario = scenario();
+        for propagation in [
+            PropagationModel::FreeSpace,
+            PropagationModel::TwoRay,
+            PropagationModel::Rician {
+                k_factor_db: 6.0,
+                shadowing_std_db: 2.0,
+            },
+        ] {
+            scenario.propagation = propagation;
+            let ledger = scenario_validity_ledger(&scenario);
+            let scope: Vec<_> = ledger
+                .issues()
+                .iter()
+                .filter(|issue| issue.component == "scope")
+                .collect();
+            assert_eq!(scope.len(), 1, "{:?}", ledger.issues());
+            assert!(
+                scope[0]
+                    .message
+                    .contains("only the propagation model is assessed"),
+                "{}",
+                scope[0].message
+            );
+            let report = validity_report_markdown(&ledger);
+            assert!(
+                report.contains(
+                    "- warning — scope: only the propagation model is assessed; radar, ISAC, \
+                     antenna-pattern and receiver models are not catalogued in this report"
+                ),
+                "{report}"
+            );
+        }
+    }
+
+    #[test]
+    fn report_flattens_newlines_in_issue_lines() {
+        let mut ledger = ValidityLedger::default();
+        ledger.push(ValidityIssue::warning(
+            "comp\nonent",
+            "line one\r\nline two\nthree",
+        ));
+        let report = validity_report_markdown(&ledger);
+        let items: Vec<_> = report.lines().filter(|l| l.starts_with("- ")).collect();
+        assert_eq!(items.len(), 1, "{report}");
+        assert_eq!(
+            items[0], "- warning — comp onent: line one  line two three",
+            "{report}"
+        );
+        assert!(!report.contains('\r'), "{report:?}");
+    }
+
+    #[test]
     fn scenario_ledger_free_space_vs_two_ray() {
         let mut scenario = scenario();
         scenario.propagation = PropagationModel::FreeSpace;
@@ -105,8 +159,8 @@ mod report_tests {
         assert_eq!(free.models().len(), 1);
         assert_eq!(free.models()[0].name, "free_space");
         assert_eq!(free.models()[0].maturity, ModelMaturity::ValidatedReference);
-        // Only the always-on synthetic-data warning applies.
-        assert_eq!(free.issues().len(), 1);
+        // Only the always-on synthetic-data and scope warnings apply.
+        assert_eq!(free.issues().len(), 2);
         assert_eq!(free.quality(), PhysicsQuality::ValidatedWithWarnings);
 
         scenario.propagation = PropagationModel::TwoRay;

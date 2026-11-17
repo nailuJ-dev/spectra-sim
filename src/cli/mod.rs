@@ -159,7 +159,7 @@ enum Command {
         #[command(subcommand)]
         action: ExamplesAction,
     },
-    /// Print the JSON Schema of a scenario file or a run output.
+    /// Print the JSON Schema of a scenario file or an in-memory run result.
     #[cfg(feature = "schema")]
     Schema {
         /// Which schema to print.
