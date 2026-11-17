@@ -270,3 +270,31 @@ fn fuzz_tle_non_digit_checksum_column_is_an_error_not_a_panic() {
     };
     assert!(tle.elements().is_err());
 }
+
+// Found by cargo-fuzz (target `oem_kvn`): an absurd year (202626626) reached
+// SOFA `dat`, where `12 * year` overflows i32 and panics in overflow-checked
+// builds. Epochs outside a sane calendar range must be rejected up front.
+#[test]
+fn fuzz_oem_kvn_absurd_epoch_year_is_an_error_not_a_panic() {
+    let text = "CCSDS_OEM_VERS = 3.0\n\
+META_START\n\
+OBJECT_NAME = SAT-A\n\
+OBJECT_ID = 2026-001A\n\
+CENTER_NAME = EARTH\n\
+REF_FRAME = GCRF\n\
+TIME_SYSTEM = UTC\n\
+META_STOP\n\
+2026-09-02T00:00:00 7000 0 0 0 7.5 0\n\
+202626626-09-02T00:01:00 6990 450 0 -0.48 7.49 0\n";
+    assert!(OemMessage::from_kvn(text).is_err());
+    assert!(spectra_sim::AbsoluteEpoch::from_calendar(
+        i32::MAX,
+        1,
+        1,
+        0,
+        0,
+        0.0,
+        spectra_sim::TimeScale::Utc
+    )
+    .is_err());
+}

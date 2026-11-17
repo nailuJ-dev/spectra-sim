@@ -7,6 +7,12 @@ use super::{EopSample, TimeScale};
 
 const SECONDS_PER_DAY: f64 = 86_400.0;
 const GPS_MINUS_TAI_SECONDS: f64 = -19.0;
+/// Calendar years accepted by [`AbsoluteEpoch::from_calendar`]. The lower bound
+/// is the earliest year SOFA's calendar routines accept; the upper bound is the
+/// largest four-digit year (CCSDS/ISO 8601). Wider values would overflow
+/// integer arithmetic inside SOFA's leap-second lookup.
+const MIN_CALENDAR_YEAR: i32 = -4799;
+const MAX_CALENDAR_YEAR: i32 = 9999;
 
 /// Absolute astronomical epoch stored as a two-part Julian Date.
 ///
@@ -39,6 +45,11 @@ impl AbsoluteEpoch {
     ) -> Result<Self> {
         if !second.is_finite() {
             return Err(SimError::NonFinite);
+        }
+        if !(MIN_CALENDAR_YEAR..=MAX_CALENDAR_YEAR).contains(&year) {
+            return Err(SimError::InvalidArgument(format!(
+                "epoch year {year} is outside the supported range {MIN_CALENDAR_YEAR}..={MAX_CALENDAR_YEAR}"
+            )));
         }
         let label = scale_label(scale)?;
         let (jd1, jd2) =
