@@ -32,7 +32,7 @@
 - Library: `spectra_sim::viz::{constellation_svg, spectrum_svg, spectrogram_svg, timeline_svg}`.
 - The dB axis of the spectrum and spectrogram is the Hann-windowed periodogram power (normalised by the window power) of the stored I/Q values, in dB relative to a squared sample value of 1. It is not dBFS (it is not referenced to the ADC full scale), so read relative levels, not absolute ones.
 - The CLI bounds the work: the constellation draws at most 2000 points, the FFT length is a power of two up to 2^20 (default 256), and the spectrogram is limited to 4096 cells (frames are skipped and bins merged by the smallest integer factors that fit).
-- Library callers passing a spectrogram `hop` of at least the FFT length get a frame whose power is empty and is reported as a -200 dB row; the CLI uses `hop = fft / 2`.
+- A `hop` larger than the FFT length can produce a trailing frame that starts past the end of the capture, reported as a -200 dB row; the CLI (`hop = fft / 2`) never hits this.
 
 #### Validity report
 - `spectra_sim::report::{validity_report_markdown, scenario_validity_ledger}` build the report written as `validity_report.md`. Its scope is the propagation model only: `free_space` is labelled a validated reference (closed-form Friis), `two_ray` and `rician` are validated with warnings (idealised, not calibrated against measurements). Every report carries a "synthetic data: not field-validated" warning and an explicit warning that radar, ISAC, antenna-pattern and receiver models are not catalogued. The maturity labels are judgment calls documented in `src/report.rs`.
@@ -65,7 +65,7 @@
 
 ### Notes
 - Output hashes are unchanged from 0.4.1: the same scenario and seed produce the same `output_sha256`. The `output_hash_is_unchanged` test in `tests/sdk_contracts.rs` pins this. The manifest's `simulator_version` changes to `0.5.0`, but it is not part of `output_sha256`.
-- Supply-chain status: `cargo audit --deny warnings` currently fails on RUSTSEC-2026-0543 (`chrono` 0.4.45 is flagged as unmaintained; it is pulled in by `sgp4 =2.4.0`). This is unresolved and awaits a maintainer decision (bump `sgp4`, or add a documented advisory ignore). Until then the CI `supply-chain` job and `scripts/release_check.sh` fail. No advisory has been ignored and `sgp4` has not been changed.
+- Supply-chain status: RUSTSEC-2026-0543 (`chrono` 0.4.45 is flagged as unmaintained; it is pulled in by `sgp4 =2.4.0`) is open. `cargo audit` reports it as an allowed warning, and the CI `supply-chain` job (`cargo-deny-action` and `rustsec/audit-check`, without deny-warnings; `deny.toml` has `unmaintained = "workspace"`) stays green. `cargo audit --deny warnings`, and therefore `scripts/release_check.sh`, fails. The maintainer decision (bump `sgp4`, or add a documented advisory ignore) is still open; do not tag a release through `scripts/release_check.sh` until it is made. No advisory has been ignored and `sgp4` has not been changed.
 - The Docker image and release binaries are produced by `release.yml` only once a tag is pushed; none are published by this change.
 
 ## 0.4.1

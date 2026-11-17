@@ -19,7 +19,7 @@ Its goal is simple: provide reproducible RF environments that are realistic enou
 ### First run
 
 ```bash
-spectra-sim examples list                              # scenarios embedded in the binary
+spectra-sim examples list                              # embedded examples (`randomization` is a config for `randomize`, not a scenario)
 spectra-sim examples show sigint_urban > sigint_urban.json
 spectra-sim validate sigint_urban.json                 # check the file without simulating (--json for machines)
 
@@ -31,7 +31,7 @@ spectra-sim replay sigint_urban.json out/replay_manifest.json --kind sigint   # 
 spectra-sim sweep sigint_urban.json --kind sigint --seeds 0..16 --out out/sweep
 ```
 
-`sigint` writes `iq_capture.json`, `truth.json`, `sigint_scenario.json`, `replay_manifest.json` and `validity_report.md` into `--out`; `sweep` writes one `seed_<n>/` directory per seed plus a `sweep_manifest.json` index of per-seed output hashes. `replay` exits 2 and names the reason when the scenario, simulator version, output schema or output hash differs from the manifest. Exit codes: 0 success, 2 invalid input, 3 I/O error. See [`docs/SDK_INTEGRATION.md`](docs/SDK_INTEGRATION.md) for the file contracts and JSON Schemas.
+`examples list` also shows `randomization`: that is a randomization config (use it with `randomize` or `sweep --randomization`), not a scenario, so `validate` rejects it. `sigint` writes `iq_capture.json`, `truth.json`, `sigint_scenario.json`, `replay_manifest.json` and `validity_report.md` into `--out`; `sweep` writes one `seed_<n>/` directory per seed plus a `sweep_manifest.json` index of per-seed output hashes. `replay` exits 2 and names the reason when the scenario, simulator version, output schema or output hash differs from the manifest. Exit codes: 0 success, 2 invalid input, 3 I/O error. See [`docs/SDK_INTEGRATION.md`](docs/SDK_INTEGRATION.md) for the file contracts and JSON Schemas.
 
 ### Formats
 
@@ -222,7 +222,7 @@ Truth + metadata + validity
 
 The simulator is deliberately modular so higher-fidelity propagation or astrodynamics backends can be integrated without changing downstream sensing APIs.
 
-## Quick start
+## Build from source
 
 ```bash
 git clone https://github.com/nailuJ-dev/spectra-sim.git
@@ -239,7 +239,7 @@ Explore the CLI:
 cargo run --bin spectra-sim -- --help
 ```
 
-Example scenarios are available in the repository.
+Example scenarios are available in the repository and embedded in the binary (`spectra-sim examples list`).
 
 ## Design principles
 

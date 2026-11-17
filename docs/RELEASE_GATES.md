@@ -18,7 +18,9 @@ cargo audit --deny warnings
 cargo deny check
 ```
 
-CI runs both in the `supply-chain` job and `scripts/release_check.sh` runs both. Known open item: `cargo audit --deny warnings` currently fails on RUSTSEC-2026-0543 (`chrono` 0.4.45 unmaintained, pulled in by `sgp4 =2.4.0`); the job and the script stay red until a maintainer bumps `sgp4` or records a documented advisory ignore.
+`scripts/release_check.sh` runs both. The CI `supply-chain` job runs `cargo-deny-action` and `rustsec/audit-check` without deny-warnings (`deny.toml` has `unmaintained = "workspace"`), so it reports warnings but does not fail on them.
+
+Known open item: RUSTSEC-2026-0543 (`chrono` 0.4.45 unmaintained, pulled in by `sgp4 =2.4.0`) is reported as a warning. The CI job stays green, but `cargo audit --deny warnings` (and therefore `scripts/release_check.sh`) fails. The maintainer decision (bump `sgp4`, or record a documented advisory ignore) is still open; do not tag a release through `scripts/release_check.sh` until it is made.
 
 The release tree must not contain private registries, path dependencies outside the repository, or mandatory network services.
 
