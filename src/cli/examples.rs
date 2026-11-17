@@ -94,6 +94,24 @@ mod tests {
     }
 
     #[test]
+    fn every_example_file_is_embedded() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/scenarios");
+        let mut on_disk: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap_or_else(|error| panic!("{}: {error}", dir.display()))
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
+            .filter_map(|path| {
+                path.file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .map(str::to_owned)
+            })
+            .collect();
+        on_disk.sort();
+        let embedded: Vec<String> = list().into_iter().map(str::to_owned).collect();
+        assert_eq!(on_disk, embedded);
+    }
+
+    #[test]
     fn show_unknown_is_not_found() {
         assert!(matches!(show("nope"), Err(SimError::NotFound(_))));
     }

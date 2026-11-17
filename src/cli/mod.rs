@@ -8,8 +8,8 @@ mod validate;
 
 use std::path::{Path, PathBuf};
 
-use clap::{Parser, Subcommand};
-use spectra_sim::{run_cuas, run_sigint, DomainRandomization, Result, SimError};
+use clap::{Parser, Subcommand, ValueEnum};
+use spectra_sim::{run_cuas, run_sigint, DomainRandomization, Result, RunKind, SimError};
 
 use io::{
     ensure_dir, load_scenario, read_json, write_cuas_outputs, write_json, write_sigint_outputs,
@@ -24,6 +24,32 @@ use io::{
 struct Cli {
     #[command(subcommand)]
     command: Command,
+}
+
+/// Command-line spelling of [`RunKind`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum KindArg {
+    Sigint,
+    Cuas,
+}
+
+impl KindArg {
+    /// The spelling used on the command line and in `sweep_manifest.json`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            KindArg::Sigint => "sigint",
+            KindArg::Cuas => "cuas",
+        }
+    }
+}
+
+impl From<KindArg> for RunKind {
+    fn from(kind: KindArg) -> Self {
+        match kind {
+            KindArg::Sigint => RunKind::Sigint,
+            KindArg::Cuas => RunKind::Cuas,
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -74,7 +100,7 @@ enum Command {
         manifest: PathBuf,
         /// Which job the manifest was produced by.
         #[arg(long, value_enum)]
-        kind: replay_cmd::KindArg,
+        kind: KindArg,
     },
     /// Run a scenario over a range of seeds (Monte Carlo batch).
     Sweep {
@@ -82,7 +108,7 @@ enum Command {
         scenario: PathBuf,
         /// Which job to run for every seed.
         #[arg(long, value_enum)]
-        kind: replay_cmd::KindArg,
+        kind: KindArg,
         /// Half-open seed range `A..B` (at most 100000 seeds).
         // Parsed manually so range errors map to the usual exit code.
         #[arg(long, allow_hyphen_values = true)]
@@ -90,13 +116,14 @@ enum Command {
         /// Randomization config JSON applied per seed before the run.
         #[arg(long)]
         randomization: Option<PathBuf>,
-        /// Worker threads (default: available parallelism).
+        /// Worker threads, 1 to 1024 (default: available parallelism).
         #[arg(long)]
         jobs: Option<usize>,
         /// Output directory.
         #[arg(long, default_value = "artifacts/sweep")]
         out: PathBuf,
-        /// Write into a non-empty output directory.
+        /// Write into a non-empty output directory. Existing seed_* directories
+        /// are kept; sweep_manifest.json is the authoritative index of a sweep.
         #[arg(long)]
         force: bool,
     },

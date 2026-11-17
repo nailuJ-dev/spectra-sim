@@ -115,6 +115,27 @@ mod verify {
     }
 
     #[test]
+    fn verify_reports_schema_mismatch_for_tampered_legacy_manifest() {
+        let scenario = load("examples/scenarios/sigint_urban.json");
+        let run = run_sigint(&scenario).unwrap();
+        let mut value = serde_json::to_value(&run.manifest).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("output_schema_version");
+        let mut legacy: spectra_sim::ReplayManifest = serde_json::from_value(value).unwrap();
+        legacy.output_sha256 = flip_first_hex(&legacy.output_sha256);
+        let verdict = verify_replay(&scenario, &legacy, RunKind::Sigint).unwrap();
+        assert_eq!(
+            verdict,
+            ReplayVerdict::SchemaMismatch {
+                manifest: "unversioned".into(),
+                current: spectra_sim::OUTPUT_SCHEMA_VERSION.into()
+            }
+        );
+    }
+
+    #[test]
     fn verify_with_wrong_job_kind_is_an_error() {
         let scenario = load("examples/scenarios/sigint_urban.json");
         let manifest = run_sigint(&scenario).unwrap().manifest;

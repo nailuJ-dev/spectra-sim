@@ -1,33 +1,53 @@
 //! File helpers shared by every CLI subcommand.
 
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use spectra_sim::{sigint_golden_scenario, CuasRun, Result, Scenario, SigintRun, SimError};
 
-/// Maximum accepted scenario file size.
-const MAX_SCENARIO_BYTES: usize = 32 * 1024 * 1024;
+/// Maximum accepted size of any input file (scenario, manifest, config).
+const MAX_INPUT_BYTES: usize = 32 * 1024 * 1024;
+
+/// Reads `path` fully, but never more than [`MAX_INPUT_BYTES`] plus one byte,
+/// so special files (`/dev/zero`, FIFOs) cannot exhaust memory.
+fn read_bounded(path: &Path) -> Result<Vec<u8>> {
+    let file = fs::File::open(path).map_err(|error| io_with_path(error, path))?;
+    let mut bytes = Vec::new();
+    file.take(MAX_INPUT_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| io_with_path(error, path))?;
+    if bytes.len() > MAX_INPUT_BYTES {
+        return Err(SimError::DimensionLimit {
+            actual: bytes.len(),
+            max: MAX_INPUT_BYTES,
+        });
+    }
+    Ok(bytes)
+}
+
+/// Parses JSON bytes read from `path`; errors name the file.
+fn parse_json<T: DeserializeOwned>(bytes: &[u8], path: &Path) -> Result<T> {
+    serde_json::from_slice(bytes).map_err(|error| {
+        SimError::Json(<serde_json::Error as serde::de::Error>::custom(format!(
+            "{}: {error}",
+            path.display()
+        )))
+    })
+}
 
 /// Reads, parses and validates a scenario file.
 pub fn load_scenario(path: &Path) -> Result<Scenario> {
-    let bytes = fs::read(path).map_err(|error| io_with_path(error, path))?;
-    if bytes.len() > MAX_SCENARIO_BYTES {
-        return Err(SimError::DimensionLimit {
-            actual: bytes.len(),
-            max: MAX_SCENARIO_BYTES,
-        });
-    }
-    let scenario: Scenario = serde_json::from_slice(&bytes)?;
+    let scenario: Scenario = parse_json(&read_bounded(path)?, path)?;
     scenario.validate()?;
     Ok(scenario)
 }
 
-/// Reads and parses a JSON file (no size cap or validation).
+/// Reads and parses a JSON file (size-capped, no further validation).
 pub fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T> {
-    let bytes = fs::read(path).map_err(|error| io_with_path(error, path))?;
-    Ok(serde_json::from_slice(&bytes)?)
+    parse_json(&read_bounded(path)?, path)
 }
 
 /// Writes pretty-printed JSON to `path`. Does not create parent directories.
@@ -70,7 +90,7 @@ pub fn write_cuas_outputs(dir: &Path, run: &CuasRun) -> Result<()> {
 }
 
 /// Re-wraps an I/O error so the message names the offending path.
-fn io_with_path(error: std::io::Error, path: &Path) -> SimError {
+pub(super) fn io_with_path(error: std::io::Error, path: &Path) -> SimError {
     SimError::Io(std::io::Error::new(
         error.kind(),
         format!("{}: {error}", path.display()),

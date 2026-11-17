@@ -41,6 +41,7 @@ pub fn replay_manifest<T: Serialize>(scenario: &Scenario, output: &T) -> Result<
 
 /// Which simulation job a manifest was produced by.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RunKind {
     Sigint,
     Cuas,
@@ -48,18 +49,36 @@ pub enum RunKind {
 
 /// Outcome of re-running a scenario against a stored replay manifest.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ReplayVerdict {
     Match,
-    OutputMismatch { expected: String, actual: String },
-    ScenarioMismatch { expected: String, actual: String },
-    VersionMismatch { manifest: String, current: String },
+    OutputMismatch {
+        expected: String,
+        actual: String,
+    },
+    ScenarioMismatch {
+        expected: String,
+        actual: String,
+    },
+    VersionMismatch {
+        manifest: String,
+        current: String,
+    },
+    /// The output hash differs and the manifest's output schema is not the current one.
+    SchemaMismatch {
+        manifest: String,
+        current: String,
+    },
 }
 
 /// Re-runs `scenario` and compares the result against `manifest`.
 ///
 /// Checks the scenario hash first, then re-runs and compares the output hash.
 /// A differing output is reported as `VersionMismatch` when the manifest was
-/// produced by a different simulator version, otherwise as `OutputMismatch`.
+/// produced by a different simulator version, as `SchemaMismatch` when it
+/// was produced under a different output schema (including legacy manifests
+/// without one), otherwise as `OutputMismatch`. A manifest whose output hash
+/// agrees is a `Match` regardless of its schema tag.
 pub fn verify_replay(
     scenario: &Scenario,
     manifest: &ReplayManifest,
@@ -84,6 +103,12 @@ pub fn verify_replay(
         return Ok(ReplayVerdict::VersionMismatch {
             manifest: manifest.simulator_version.clone(),
             current: current.into(),
+        });
+    }
+    if manifest.output_schema_version != OUTPUT_SCHEMA_VERSION {
+        return Ok(ReplayVerdict::SchemaMismatch {
+            manifest: manifest.output_schema_version.clone(),
+            current: OUTPUT_SCHEMA_VERSION.into(),
         });
     }
     Ok(ReplayVerdict::OutputMismatch {

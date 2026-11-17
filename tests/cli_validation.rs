@@ -41,6 +41,7 @@ fn help_lists_subcommands() {
         "randomize",
         "validate",
         "replay",
+        "sweep",
         "examples",
     ] {
         assert!(stdout.contains(name), "missing {name} in stdout={stdout}");
@@ -73,6 +74,12 @@ fn bad_json_exits_2() {
     let output = run_cli(&["sigint", path.to_str().expect("utf-8 path")]);
     let _ = std::fs::remove_file(&path);
     assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(path.to_str().expect("utf-8 path")),
+        "stderr={stderr}"
+    );
+    assert_eq!(stderr.trim().lines().count(), 1, "stderr={stderr}");
 }
 
 fn temp_path(test: &str) -> std::path::PathBuf {
@@ -642,4 +649,216 @@ fn replay_reports_scenario_mismatch() {
     assert_eq!(out.status.code(), Some(2), "{out:?}");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("scenario mismatch"), "stderr={stderr}");
+}
+
+#[test]
+fn replay_bad_manifest_json_names_the_file() {
+    let dir = TempDir::new("replay-bad-manifest");
+    std::fs::create_dir_all(dir.path()).expect("create dir");
+    let manifest = dir.path().join("broken_manifest.json");
+    std::fs::write(&manifest, "{").expect("write manifest");
+    let manifest_arg = manifest.to_str().expect("utf-8 path");
+    let out = run_cli(&["replay", SIGINT_SCENARIO, manifest_arg, "--kind", "sigint"]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains(manifest_arg), "stderr={stderr}");
+    assert_eq!(stderr.trim().lines().count(), 1, "stderr={stderr}");
+}
+
+#[test]
+fn replay_oversized_manifest_exits_2() {
+    let dir = TempDir::new("replay-oversized");
+    std::fs::create_dir_all(dir.path()).expect("create dir");
+    let manifest = dir.path().join("huge_manifest.json");
+    std::fs::write(&manifest, vec![b' '; 32 * 1024 * 1024 + 1]).expect("write manifest");
+    let out = run_cli(&[
+        "replay",
+        SIGINT_SCENARIO,
+        manifest.to_str().expect("utf-8 path"),
+        "--kind",
+        "sigint",
+    ]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("dimension limit"), "stderr={stderr}");
+    assert_eq!(stderr.trim().lines().count(), 1, "stderr={stderr}");
+}
+
+#[test]
+fn replay_reports_schema_mismatch_for_legacy_manifest() {
+    let dir = TempDir::new("replay-schema");
+    let out = run_cli(&["sigint", SIGINT_SCENARIO, "--out", dir.arg()]);
+    assert_eq!(out.status.code(), Some(0));
+    let text = std::fs::read_to_string(dir.path().join("replay_manifest.json")).expect("read");
+    let mut value: serde_json::Value = serde_json::from_str(&text).expect("json");
+    value
+        .as_object_mut()
+        .expect("object")
+        .remove("output_schema_version");
+    let hash = value["output_sha256"].as_str().expect("hash").to_string();
+    let flipped = if hash.starts_with('0') { "1" } else { "0" };
+    value["output_sha256"] = serde_json::json!(format!("{flipped}{}", &hash[1..]));
+    let manifest = dir.path().join("legacy_manifest.json");
+    std::fs::write(&manifest, value.to_string()).expect("write manifest");
+
+    let out = run_cli(&[
+        "replay",
+        SIGINT_SCENARIO,
+        manifest.to_str().expect("utf-8 path"),
+        "--kind",
+        "sigint",
+    ]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("schema mismatch"), "stderr={stderr}");
+    assert!(stderr.contains("unversioned"), "stderr={stderr}");
+    assert!(!stderr.contains("output mismatch"), "stderr={stderr}");
+}
+
+#[test]
+fn replay_scenario_mismatch_mentions_differing_versions() {
+    let dir = TempDir::new("replay-scenario-version");
+    let out = run_cli(&["sigint", SIGINT_SCENARIO, "--out", dir.arg()]);
+    assert_eq!(out.status.code(), Some(0));
+    let text = std::fs::read_to_string(dir.path().join("replay_manifest.json")).expect("read");
+    let mut value: serde_json::Value = serde_json::from_str(&text).expect("json");
+    value["simulator_version"] = serde_json::json!("0.0.0");
+    let hash = value["scenario_sha256"].as_str().expect("hash").to_string();
+    let flipped = if hash.starts_with('0') { "1" } else { "0" };
+    value["scenario_sha256"] = serde_json::json!(format!("{flipped}{}", &hash[1..]));
+    let manifest = dir.path().join("old_manifest.json");
+    std::fs::write(&manifest, value.to_string()).expect("write manifest");
+    let out = run_cli(&[
+        "replay",
+        SIGINT_SCENARIO,
+        manifest.to_str().expect("utf-8 path"),
+        "--kind",
+        "sigint",
+    ]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("scenario mismatch"), "stderr={stderr}");
+    assert!(
+        stderr.contains("manifest from simulator 0.0.0"),
+        "stderr={stderr}"
+    );
+}
+
+#[test]
+fn sweep_rejects_excessive_jobs_before_creating_output() {
+    let dir = TempDir::new("sweep-huge-jobs");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "sigint",
+        "--seeds",
+        "0..2",
+        "--jobs",
+        "1000000",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--jobs"), "stderr={stderr}");
+    assert!(stderr.contains("1024"), "stderr={stderr}");
+    assert!(!dir.path().exists(), "no output dir for rejected --jobs");
+}
+
+#[test]
+fn sweep_accepts_the_maximum_job_count() {
+    let dir = TempDir::new("sweep-max-jobs");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "sigint",
+        "--seeds",
+        "0..1",
+        "--jobs",
+        "1024",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(dir.path().join("sweep_manifest.json").exists());
+}
+
+#[test]
+fn failing_sweep_names_seed_and_leaves_no_manifest() {
+    let dir = TempDir::new("sweep-failing");
+    std::fs::create_dir_all(dir.path()).expect("create dir");
+    // A stale manifest from an earlier sweep must not survive a failed forced run.
+    let manifest = dir.path().join("sweep_manifest.json");
+    std::fs::write(&manifest, "{\"bogus\":true}").expect("write stale manifest");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "cuas",
+        "--seeds",
+        "0..3",
+        "--jobs",
+        "1",
+        "--force",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("sweep aborted at seed 0"),
+        "stderr={stderr}"
+    );
+    assert_eq!(stderr.trim().lines().count(), 1, "stderr={stderr}");
+    assert!(!manifest.exists(), "stale sweep manifest must be removed");
+
+    let fresh = TempDir::new("sweep-failing-fresh");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "cuas",
+        "--seeds",
+        "0..3",
+        "--out",
+        fresh.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(!fresh.path().join("sweep_manifest.json").exists());
+}
+
+#[test]
+fn sweep_force_help_documents_manifest_index() {
+    let output = run_cli(&["sweep", "--help"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("sweep_manifest.json"), "stdout={stdout}");
+}
+
+#[test]
+fn single_run_output_path_that_is_a_file_exits_3_naming_it() {
+    let dir = TempDir::new("single-out-file");
+    std::fs::create_dir_all(dir.path()).expect("create dir");
+    let blocker = dir.path().join("regular_file");
+    std::fs::write(&blocker, "x").expect("write file");
+    let blocker_arg = blocker.to_str().expect("utf-8 path");
+    let output = run_cli(&["sigint", SIGINT_SCENARIO, "--out", blocker_arg]);
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(blocker_arg), "stderr={stderr}");
+}
+
+#[test]
+fn single_run_unwritable_output_exits_3_naming_it() {
+    let dir = TempDir::new("single-out-unwritable");
+    std::fs::create_dir_all(dir.path()).expect("create dir");
+    let blocker = dir.path().join("regular_file");
+    std::fs::write(&blocker, "x").expect("write file");
+    let nested = blocker.join("out");
+    let nested_arg = nested.to_str().expect("utf-8 path");
+    let output = run_cli(&["sigint", SIGINT_SCENARIO, "--out", nested_arg]);
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(nested_arg), "stderr={stderr}");
 }
