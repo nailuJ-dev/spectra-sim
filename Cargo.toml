@@ -1,6 +1,6 @@
 [package]
 name = "spectra-sim"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
@@ -8,6 +8,10 @@ description = "Deterministic physics-based RF, radar, ISAC and space-link simula
 repository = "https://github.com/nailuJ-dev/spectra-sim"
 keywords = ["rf", "radar", "isac", "simulation", "space"]
 categories = ["simulation", "science"]
+
+[workspace]
+members = ["bindings/python"]
+exclude = ["fuzz"]
 
 [lib]
 name = "spectra_sim"

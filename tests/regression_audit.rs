@@ -250,3 +250,51 @@ fn legacy_scenarios_without_pattern_fields_remain_valid() {
         AntennaPatternModel::Isotropic
     );
 }
+
+// Found by cargo-fuzz (target `tle`): a non-digit in the checksum column made
+// the upstream sgp4 checksum comparison underflow (`b'.' - b'0'`), which panics
+// in debug/overflow-checked builds instead of returning an error.
+#[test]
+fn fuzz_tle_non_digit_checksum_column_is_an_error_not_a_panic() {
+    let line1 = "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753";
+    let line2 = "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.8241915741366.";
+    assert!(spectra_sim::Tle::parse(Some("VANGUARD 1".into()), line1, line2).is_err());
+    let swapped_line1 = "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  475.";
+    let line2_ok = "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667";
+    assert!(spectra_sim::Tle::parse(None, swapped_line1, line2_ok).is_err());
+    // A deserialized `Tle` carries public fields, so `elements()` must be just as safe.
+    let tle = spectra_sim::Tle {
+        object_name: None,
+        line1: line1.into(),
+        line2: line2.into(),
+    };
+    assert!(tle.elements().is_err());
+}
+
+// Found by cargo-fuzz (target `oem_kvn`): an absurd year (202626626) reached
+// SOFA `dat`, where `12 * year` overflows i32 and panics in overflow-checked
+// builds. Epochs outside a sane calendar range must be rejected up front.
+#[test]
+fn fuzz_oem_kvn_absurd_epoch_year_is_an_error_not_a_panic() {
+    let text = "CCSDS_OEM_VERS = 3.0\n\
+META_START\n\
+OBJECT_NAME = SAT-A\n\
+OBJECT_ID = 2026-001A\n\
+CENTER_NAME = EARTH\n\
+REF_FRAME = GCRF\n\
+TIME_SYSTEM = UTC\n\
+META_STOP\n\
+2026-09-02T00:00:00 7000 0 0 0 7.5 0\n\
+202626626-09-02T00:01:00 6990 450 0 -0.48 7.49 0\n";
+    assert!(OemMessage::from_kvn(text).is_err());
+    assert!(spectra_sim::AbsoluteEpoch::from_calendar(
+        i32::MAX,
+        1,
+        1,
+        0,
+        0,
+        0.0,
+        spectra_sim::TimeScale::Utc
+    )
+    .is_err());
+}

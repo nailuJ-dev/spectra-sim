@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<oem><header><CCSDS_OEM_VERS>3.0</CCSDS_OEM_VERS></header><body><segment>
+<metadata><OBJECT_NAME>SAT-A</OBJECT_NAME><OBJECT_ID>2026-001A</OBJECT_ID><CENTER_NAME>EARTH</CENTER_NAME><REF_FRAME>GCRF</REF_FRAME><TIME_SYSTEM>UTC</TIME_SYSTEM></metadata>
+<data>
+<stateVector><EPOCH>2026-09-02T00:00:00</EPOCH><X>7000</X><Y>0</Y><Z>0</Z><X_DOT>0</X_DOT><Y_DOT>7.5</Y_DOT><Z_DOT>0</Z_DOT></stateVector>
+<stateVector><EPOCH>2026-09-02T00:01:00</EPOCH><X>6990</X><Y>450</Y><Z>0</Z><X_DOT>-0.48</X_DOT><Y_DOT>7.49</Y_DOT><Z_DOT>0</Z_DOT></stateVector>
+</data></segment></body></oem>

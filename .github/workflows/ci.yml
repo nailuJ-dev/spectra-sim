@@ -24,6 +24,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --all-targets --all-features
       - run: cargo doc --all-features --no-deps
         env:
@@ -43,14 +44,36 @@ jobs:
       - run: python3 adapters/5g_lena/trace_to_isac_config.py --trace adapters/5g_lena/example_nr_trace.csv --out /tmp/isac_config.json
       - run: python3 adapters/sionna_rt/simulate_iq_from_cir.py --scenario examples/scenarios/sigint_urban.json --cir adapters/sionna_rt/example_cir.json --out /tmp/sionna_iq.json
 
+  python-bindings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m venv .venv-bindings
+      - run: .venv-bindings/bin/pip install --disable-pip-version-check "maturin>=1.5,<2" "pytest>=8" "numpy>=1.24"
+      - run: .venv-bindings/bin/maturin develop --locked -m bindings/python/Cargo.toml
+        env:
+          VIRTUAL_ENV: ${{ github.workspace }}/.venv-bindings
+      - run: .venv-bindings/bin/pytest bindings/python/tests
+
   supply-chain:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: EmbarkStudios/cargo-deny-action@v2
-      - uses: rustsec/audit-check@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+      - uses: EmbarkStudios/cargo-deny-action@v2
+      # rustsec/audit-check compiles cargo-audit with the toolchain pinned by
+      # rust-toolchain.toml (1.85.0), which the latest cargo-audit no longer builds
+      # on. Install the prebuilt binary and run the same gate as release_check.sh.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: cargo audit --deny warnings
 
   orekit-sidecar:
     runs-on: ubuntu-latest
@@ -62,3 +85,84 @@ jobs:
           java-version: "17"
           cache: maven
       - run: mvn -q -B -f orekit-sidecar/pom.xml package
+
+  # Advisory until 0.5.0 is tagged. The crate is not published on crates.io, so
+  # there is no registry baseline; compare against the merged 0.4.1 release
+  # commit instead. 0.5.0 is the next release: after v0.5.0 is tagged, move
+  # baseline-rev to that tag and drop continue-on-error. Needs full git
+  # history (so the baseline rev exists) and therefore keeps the default
+  # persisted checkout credentials.
+  # cargo-semver-checks needs a recent rustc (>= 1.93), so this job overrides
+  # the repo's rust-toolchain.toml pin (1.85) with stable via RUSTUP_TOOLCHAIN.
+  # It currently reports the intended 0.5.0 break (ReplayManifest gained
+  # output_schema_version).
+  semver:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          baseline-rev: 897dfd9
+
+  # Measured line coverage of the root crate (cargo llvm-cov --all-features):
+  # 78.36% of lines (6704 lines, 1451 missed). Gate = floor(78.36) - 2 = 76;
+  # raise it when coverage grows. A single invocation both enforces the gate
+  # and writes lcov.info, which is uploaded as an artifact.
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - run: cargo llvm-cov --all-features --fail-under-lines 76 --lcov --output-path lcov.info
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lcov
+          path: lcov.info
+          if-no-files-found: ignore
+
+  # Weekly (schedule only): short fuzz run of every parser target on nightly.
+  # RUSTUP_TOOLCHAIN overrides the repo's rust-toolchain.toml pin (1.85), since
+  # cargo-fuzz needs nightly-only compiler flags.
+  fuzz-smoke:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: nightly
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [tle, omm_json, omm_kvn, omm_xml, oem_kvn, oem_xml, ocm_kvn, ocm_xml, eop_finals, eop_c04, scenario_json]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      - run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=30 -timeout=10 -rss_limit_mb=2048 -max_len=65536
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-artifacts-${{ matrix.target }}
+          path: fuzz/artifacts/**
+          if-no-files-found: ignore

@@ -1,0 +1,98 @@
+[package]
+name = "spectra-sim-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+
+[dependencies.spectra-sim]
+path = ".."
+
+# Not a member of the root workspace (root Cargo.toml excludes `fuzz`).
+[workspace]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "tle"
+path = "fuzz_targets/tle.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "omm_json"
+path = "fuzz_targets/omm_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "omm_kvn"
+path = "fuzz_targets/omm_kvn.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "omm_xml"
+path = "fuzz_targets/omm_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "oem_kvn"
+path = "fuzz_targets/oem_kvn.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "oem_xml"
+path = "fuzz_targets/oem_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ocm_kvn"
+path = "fuzz_targets/ocm_kvn.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ocm_xml"
+path = "fuzz_targets/ocm_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "eop_finals"
+path = "fuzz_targets/eop_finals.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "eop_c04"
+path = "fuzz_targets/eop_c04.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "scenario_json"
+path = "fuzz_targets/scenario_json.rs"
+test = false
+doc = false
+bench = false

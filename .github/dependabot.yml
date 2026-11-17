@@ -4,6 +4,14 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+  - package-ecosystem: cargo
+    directory: "/fuzz"
+    schedule:
+      interval: weekly
+  - package-ecosystem: cargo
+    directory: "/bindings/python"
+    schedule:
+      interval: weekly
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

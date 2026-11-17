@@ -1,14 +1,18 @@
 [advisories]
 unmaintained = "workspace"
 yanked = "deny"
+# RUSTSEC-2026-0543: chrono is "unmaintained" (informational, not a vulnerability) and a
+# mandatory dependency of sgp4 =2.4.0 (latest); no upgrade path. Keep in sync with .cargo/audit.toml.
+ignore = ["RUSTSEC-2026-0543"]
 
 [licenses]
-allow = ["MIT", "Apache-2.0", "Unicode-3.0"]
+allow = ["MIT", "Apache-2.0", "Unicode-3.0", "BSD-2-Clause", "Apache-2.0 WITH LLVM-exception"]
 confidence-threshold = 0.93
 
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"

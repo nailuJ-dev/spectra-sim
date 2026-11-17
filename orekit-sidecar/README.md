@@ -14,7 +14,7 @@ mvn -DskipTests package
 Resulting shaded JAR:
 
 ```text
-target/spectra-orekit-sidecar-0.4.1.jar
+target/spectra-orekit-sidecar-0.5.0.jar
 ```
 
 ## Required data snapshot
@@ -42,7 +42,7 @@ Example:
 ```bash
 printf '%s\n' '{"op":"health"}' | \
   OREKIT_DATA_DIR=/path/to/orekit-data \
-  java -jar target/spectra-orekit-sidecar-0.4.1.jar
+  java -jar target/spectra-orekit-sidecar-0.5.0.jar
 ```
 
 

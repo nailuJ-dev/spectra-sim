@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<ocm><header><CCSDS_OCM_VERS>3.0</CCSDS_OCM_VERS></header><body><segment>
+<metadata><OBJECT_NAME>SAT-A</OBJECT_NAME><TIME_SYSTEM>UTC</TIME_SYSTEM></metadata>
+<data><traj>
+<TRAJ_ID>primary</TRAJ_ID><TRAJ_REF_FRAME>GCRF</TRAJ_REF_FRAME><TRAJ_TYPE>CARTPV</TRAJ_TYPE>
+<TRAJ_UNITS>km km km km/s km/s km/s</TRAJ_UNITS>
+<trajLine>2026-09-02T00:00:00 7000 0 0 0 7.5 0</trajLine>
+<trajLine>2026-09-02T00:01:00 6990 450 0 -0.48 7.49 0</trajLine>
+</traj></data></segment></body></ocm>

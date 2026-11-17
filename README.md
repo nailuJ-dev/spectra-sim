@@ -8,6 +8,77 @@ The project is designed for engineers and researchers working on wireless system
 
 Its goal is simple: provide reproducible RF environments that are realistic enough to develop, benchmark and stress-test sensing algorithms before field deployment.
 
+## Quickstart
+
+### Install
+
+* **Release binaries and Docker image.** Pushing a version tag runs the release workflow (`.github/workflows/release.yml`), which is set up to attach `spectra-sim` binaries for Linux, macOS and Windows (with `.sha256` files) and the Orekit sidecar JAR to the GitHub Release, and to publish a Docker image `ghcr.io/nailuj-dev/spectra-sim:<tag>` (run it with `docker run --rm ghcr.io/nailuj-dev/spectra-sim:<tag> examples list`). These only exist for tags that have been pushed; until a release is published, use one of the options below.
+* **From source.** `cargo build --release --locked` produces `target/release/spectra-sim`; `cargo run --release -- <command>` runs it directly. The commands below assume `spectra-sim` is on your `PATH`; otherwise substitute `cargo run --release --`.
+* **Python.** There is no `pip install spectra-sim` yet. Build the bindings from source with maturin, see [`bindings/python/README.md`](bindings/python/README.md).
+
+### First run
+
+```bash
+spectra-sim examples list                              # embedded examples (`randomization` is a config for `randomize`, not a scenario)
+spectra-sim examples show sigint_urban > sigint_urban.json
+spectra-sim validate sigint_urban.json                 # check the file without simulating (--json for machines)
+
+spectra-sim sigint sigint_urban.json --out out --also npy,sigmf
+spectra-sim plot out/iq_capture.json --out out/plots   # constellation, spectrum, spectrogram SVGs
+spectra-sim replay sigint_urban.json out/replay_manifest.json --kind sigint   # prints MATCH
+
+# Monte Carlo: one run per seed 0..15 (half-open range, at most 100000 seeds)
+spectra-sim sweep sigint_urban.json --kind sigint --seeds 0..16 --out out/sweep
+```
+
+`examples list` also shows `randomization`: that is a randomization config (use it with `randomize` or `sweep --randomization`), not a scenario, so `validate` rejects it. `sigint` writes `iq_capture.json`, `truth.json`, `sigint_scenario.json`, `replay_manifest.json` and `validity_report.md` into `--out`; `sweep` writes one `seed_<n>/` directory per seed plus a `sweep_manifest.json` index of per-seed output hashes. `replay` exits 2 and names the reason when the scenario, simulator version, output schema or output hash differs from the manifest. Exit codes: 0 success, 2 invalid input, 3 I/O error. See [`docs/SDK_INTEGRATION.md`](docs/SDK_INTEGRATION.md) for the file contracts and JSON Schemas.
+
+### Formats
+
+| Format | Files | Content |
+| --- | --- | --- |
+| JSON (always) | `iq_capture.json` | `samples[]` of `{i, q}` (`f32`) plus `sample_rate_hz`, `center_frequency_hz` |
+| NumPy (`--also npy`) | `iq_capture.npy` | `complex64` (`<c8`), shape `(N,)` |
+| SigMF (`--also sigmf`) | `iq_capture.sigmf-data`, `iq_capture.sigmf-meta` | interleaved little-endian `f32` I/Q (`cf32_le`); metadata with sample rate and centre frequency |
+
+```python
+import numpy as np
+iq = np.load("out/iq_capture.npy")            # complex64 array
+```
+
+Or run the simulator from Python (after building the bindings, see above):
+
+```python
+import spectra_sim
+
+scenario = open("examples/scenarios/sigint_urban.json").read()
+result = spectra_sim.run_sigint(scenario)     # result.iq is a numpy complex64 array
+print(result.iq.shape, result.sample_rate_hz)
+print(spectra_sim.verify_replay(scenario, result.manifest_json, "sigint"))   # "match"
+```
+
+### Models and validation status
+
+Each `sigint` / `cuas` run also writes `validity_report.md`. Its scope is the propagation model only, and it always states that the data is synthetic and not field-validated (see [`docs/VALIDATION.md`](docs/VALIDATION.md) for the validation ladder).
+
+| Model | Status in the validity report | Basis |
+| --- | --- | --- |
+| `free_space` propagation | validated reference | closed-form Friis equation |
+| `two_ray` propagation | validated with warnings | idealised, not calibrated against measurements |
+| `rician` propagation | validated with warnings | idealised statistical model, not calibrated against measurements |
+| radar, ISAC, antenna-pattern and receiver models | not yet catalogued in the validity report | no entry in the report |
+
+## What's new in 0.5.0
+
+Command-line `validate`, `examples`, `replay`, `sweep`, `plot` and `schema`; `.npy` / SigMF export; SVG plots; a validity report; published JSON Schemas; a native Doppler-rate observable; Python bindings; a tag-driven release workflow; and fuzzing, coverage and semver CI gates. Output hashes are unchanged from 0.4.1. Breaking and behavioural changes (I/O errors now exit 3, `#[non_exhaustive]` on `RunKind` / `ReplayVerdict`, a 32 MiB input cap, calendar years limited to -4799..=9999) are listed in [`CHANGELOG.md`](CHANGELOG.md).
+
+### Known limitations
+
+* The validity report covers the selected propagation model and a synthetic-data notice only; radar, ISAC, antenna and receiver models are not catalogued yet.
+* Release binaries are built on GitHub's `ubuntu-latest`, `macos-latest` (Apple silicon, so no Intel macOS binary) and `windows-latest` runners; the Linux binary links the runner's glibc.
+* The `sigint-run` / `cuas-run` JSON Schemas describe in-memory run results, not a single file written by the CLI.
+* The Python package is not published to PyPI; build it from source (see above).
+
 ## What it does
 
 `spectra-sim` models the physical environment between emitters, propagation media, sensors and receivers.
@@ -82,7 +153,7 @@ The space RF layer supports the architecture required for:
 
 The Rust core remains independent from Java, while the optional Orekit sidecar acts as a precision/reference oracle. It can propagate TLEs, transform states, and return full Cartesian state histories parsed from OEM and OCM so native results can be compared against an independent implementation.
 
-`spectra-sim` 0.4.1 provides a deterministic space-link stack for research and engineering workflows:
+`spectra-sim` 0.5.0 provides a deterministic space-link stack for research and engineering workflows:
 
 * TLE/OMM + SGP4/SDP4 propagation;
 * CCSDS OEM/OCM KVN/XML ingestion;
@@ -162,7 +233,7 @@ Truth + metadata + validity
 
 The simulator is deliberately modular so higher-fidelity propagation or astrodynamics backends can be integrated without changing downstream sensing APIs.
 
-## Quick start
+## Build from source
 
 ```bash
 git clone https://github.com/nailuJ-dev/spectra-sim.git
@@ -179,7 +250,7 @@ Explore the CLI:
 cargo run --bin spectra-sim -- --help
 ```
 
-Example scenarios are available in the repository.
+Example scenarios are available in the repository and embedded in the binary (`spectra-sim examples list`).
 
 ## Design principles
 

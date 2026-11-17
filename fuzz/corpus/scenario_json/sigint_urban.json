@@ -1,0 +1,95 @@
+{
+  "schema_version": "spectra-sim-scenario-v1",
+  "seed": 424242,
+  "timestamp_ms": 10000,
+  "origin": {
+    "latitude_deg": 48.1173,
+    "longitude_deg": -1.6778,
+    "altitude_m": 35.0
+  },
+  "environment": {
+    "temperature_k": 290.0,
+    "ground_reflection_coefficient": -0.65,
+    "extra_loss_db": 2.0
+  },
+  "propagation": {
+    "kind": "rician",
+    "k_factor_db": 6.0,
+    "shadowing_std_db": 1.5
+  },
+  "emitters": [
+    {
+      "id": "emitter-alpha",
+      "center_frequency_hz": 915000000.0,
+      "bandwidth_hz": 200000.0,
+      "tx_power_dbm": 20.0,
+      "antenna": {
+        "gain_dbi": 2.0,
+        "polarization_loss_db": 0.5,
+        "cable_loss_db": 0.5
+      },
+      "state": {
+        "position_enu_m": {
+          "x": 300.0,
+          "y": 180.0,
+          "z": 30.0
+        },
+        "velocity_enu_mps": {
+          "x": -8.0,
+          "y": 3.0,
+          "z": 0.0
+        },
+        "roll_deg": 0.0,
+        "pitch_deg": 0.0,
+        "yaw_deg": 25.0
+      },
+      "waveform": {
+        "kind": "pulse_train",
+        "offset_hz": 45000.0,
+        "pulse_repetition_hz": 1200.0,
+        "duty_cycle": 0.35
+      }
+    }
+  ],
+  "receivers": [
+    {
+      "id": "sensor-1",
+      "sample_rate_hz": 2000000.0,
+      "noise_figure_db": 5.0,
+      "adc_bits": 12,
+      "full_scale_v": 1.0,
+      "oscillator_ppm": 0.5,
+      "phase_noise_rad_std": 0.0005,
+      "iq_gain_imbalance_db": 0.1,
+      "iq_phase_imbalance_deg": 0.2,
+      "agc_target_rms": 0.25,
+      "antenna": {
+        "gain_dbi": 8.0,
+        "polarization_loss_db": 0.5,
+        "cable_loss_db": 1.0
+      },
+      "state": {
+        "position_enu_m": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 10.0
+        },
+        "velocity_enu_mps": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "roll_deg": 0.0,
+        "pitch_deg": 0.0,
+        "yaw_deg": 0.0
+      }
+    }
+  ],
+  "targets": [],
+  "sigint_job": {
+    "emitter_id": "emitter-alpha",
+    "receiver_id": "sensor-1",
+    "samples": 4096
+  },
+  "cuas_job": null
+}

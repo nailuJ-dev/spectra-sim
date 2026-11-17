@@ -1,0 +1,248 @@
+# Tag-driven release: pushing a tag `vX.Y.Z` (or `vX.Y.Z-rc.N`) builds the CLI
+# binaries, the Orekit sidecar JAR and the GHCR Docker image, then publishes a
+# GitHub Release with every artifact and its .sha256 file.
+#
+# The version is never hard-coded here: it is taken from the tag name, and the
+# `verify-tag` job refuses to continue unless the tag matches both the root
+# Cargo.toml package version and the sidecar pom.xml project version.
+#
+# Follow-up: third-party actions are pinned to major version tags (same as
+# ci.yml). Pinning them to full commit SHAs is a known hardening step that is
+# intentionally deferred because SHAs cannot be verified offline.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Tag must match Cargo.toml and sidecar pom.xml versions
+        run: |
+          set -euo pipefail
+          if ! [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::tag must look like vX.Y.Z or vX.Y.Z-prerelease"
+            exit 1
+          fi
+          crate_version="$(cargo metadata --no-deps --format-version 1 --locked | python3 -c '
+          import json, sys
+          meta = json.load(sys.stdin)
+          pkgs = [p for p in meta["packages"] if p["name"] == "spectra-sim"]
+          if len(pkgs) != 1:
+              sys.exit("could not find exactly one package named spectra-sim in cargo metadata")
+          print(pkgs[0]["version"])
+          ')"
+          sidecar_version="$(python3 -c '
+          import sys
+          import xml.etree.ElementTree as ET
+          ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+          root = ET.parse(sys.argv[1]).getroot()
+          node = root.find("m:version", ns)
+          if node is None:
+              node = root.find("version")
+          if node is None or not (node.text or "").strip():
+              sys.exit("no <project><version> found in " + sys.argv[1])
+          print(node.text.strip())
+          ' orekit-sidecar/pom.xml)"
+          echo "tag:             ${GITHUB_REF_NAME}"
+          echo "Cargo.toml:      ${crate_version}"
+          echo "sidecar pom.xml: ${sidecar_version}"
+          expected="v${crate_version}"
+          if [ "${GITHUB_REF_NAME}" != "${expected}" ]; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' does not match Cargo.toml package version '${crate_version}' (expected tag '${expected}')."
+            exit 1
+          fi
+          if [ "${GITHUB_REF_NAME}" != "v${sidecar_version}" ]; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' does not match orekit-sidecar/pom.xml version '${sidecar_version}' (expected tag 'v${sidecar_version}')."
+            exit 1
+          fi
+          echo "Tag, Cargo.toml and sidecar pom.xml versions agree."
+
+  binaries:
+    needs: verify-tag
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux
+            bin: spectra-sim
+          - os: macos-latest
+            label: macos
+            bin: spectra-sim
+          - os: windows-latest
+            label: windows
+            bin: spectra-sim.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.85.0
+      # No rust-cache / maven cache in this workflow: release artifacts are built from a clean state.
+      - run: cargo build --release --locked
+      - name: Compute asset name
+        shell: bash
+        env:
+          LABEL: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          arch="$(printf '%s' "${RUNNER_ARCH}" | tr '[:upper:]' '[:lower:]')"
+          echo "ASSET=spectra-sim-${GITHUB_REF_NAME}-${LABEL}-${arch}" >> "${GITHUB_ENV}"
+      - name: Package (tar.gz)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          BIN: ${{ matrix.bin }}
+          COPYFILE_DISABLE: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p dist "stage/${ASSET}"
+          cp "target/release/${BIN}" LICENSE LICENSE-APACHE LICENSE-MIT README.md "stage/${ASSET}/"
+          tar -C stage -czf "dist/${ASSET}.tar.gz" "${ASSET}"
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${ASSET}.tar.gz" > "${ASSET}.tar.gz.sha256"
+          else
+            shasum -a 256 "${ASSET}.tar.gz" > "${ASSET}.tar.gz.sha256"
+          fi
+          cat "${ASSET}.tar.gz.sha256"
+      - name: Package (zip)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          BIN: ${{ matrix.bin }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path 'stage' $env:ASSET
+          New-Item -ItemType Directory -Force -Path 'dist', $stage | Out-Null
+          Copy-Item -Path (Join-Path 'target/release' $env:BIN), 'LICENSE', 'LICENSE-APACHE', 'LICENSE-MIT', 'README.md' -Destination $stage
+          $zip = Join-Path 'dist' "$($env:ASSET).zip"
+          Compress-Archive -Path $stage -DestinationPath $zip -Force
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          $line = "$hash  $($env:ASSET).zip`n"
+          [System.IO.File]::WriteAllText((Join-Path (Get-Location) "$zip.sha256"), $line, (New-Object System.Text.UTF8Encoding($false)))
+          Get-Content "$zip.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.label }}
+          path: dist/*
+          if-no-files-found: error
+
+  sidecar:
+    needs: verify-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: mvn -B -f orekit-sidecar/pom.xml package
+      - name: Collect shaded JAR and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # The shade plugin also leaves original-*.jar behind; that must not be released.
+          jars=(orekit-sidecar/target/spectra-orekit-sidecar-*.jar)
+          if [ "${#jars[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one shaded sidecar JAR, found ${#jars[@]}: ${jars[*]:-none}"
+            exit 1
+          fi
+          mkdir -p dist
+          cp "${jars[0]}" dist/
+          cd dist
+          jar_name="$(basename "${jars[0]}")"
+          sha256sum "${jar_name}" > "${jar_name}.sha256"
+          cat "${jar_name}.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidecar
+          path: dist/*
+          if-no-files-found: error
+
+  docker:
+    needs: [verify-tag, binaries, sidecar]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Compute lowercase image name
+        id: image
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "name=ghcr.io/$(printf '%s' "${REPOSITORY}" | tr '[:upper:]' '[:lower:]')" >> "${GITHUB_OUTPUT}"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          # `latest` only for stable tags; any tag with a `-` suffix is a prerelease.
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+          # Set explicitly so metadata-action does not derive a different licenses value.
+          labels: |
+            org.opencontainers.image.licenses=Apache-2.0 OR MIT
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+      - uses: docker/build-push-action@v6
+        env:
+          # Keep the *.dockerbuild build-record artifact out of the workflow's artifacts.
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  release:
+    needs: [binaries, sidecar, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: "{binaries-*,sidecar}"
+          merge-multiple: true
+      - name: List release assets
+        run: ls -l dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.jar
+            dist/*.sha256
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

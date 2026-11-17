@@ -25,7 +25,7 @@ cargo build --release --locked
 cargo audit --deny warnings
 cargo deny check
 mvn -q -f orekit-sidecar/pom.xml package
-test -f orekit-sidecar/target/spectra-orekit-sidecar-0.4.1.jar
+test -f orekit-sidecar/target/spectra-orekit-sidecar-0.5.0.jar
 python3 -m py_compile adapters/gazebo/state_snapshot_to_scenario.py adapters/sionna_rt/export_cir.py adapters/sionna_rt/simulate_iq_from_cir.py adapters/5g_lena/trace_to_isac_config.py tools/reference_check.py
 python3 tools/reference_check.py
 python3 adapters/gazebo/state_snapshot_to_scenario.py --scenario examples/scenarios/cuas_drone_isac.json --snapshot adapters/gazebo/example_snapshot.json --out /tmp/spectra-gazebo-scenario.json
