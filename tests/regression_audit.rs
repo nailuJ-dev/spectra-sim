@@ -250,3 +250,23 @@ fn legacy_scenarios_without_pattern_fields_remain_valid() {
         AntennaPatternModel::Isotropic
     );
 }
+
+// Found by cargo-fuzz (target `tle`): a non-digit in the checksum column made
+// the upstream sgp4 checksum comparison underflow (`b'.' - b'0'`), which panics
+// in debug/overflow-checked builds instead of returning an error.
+#[test]
+fn fuzz_tle_non_digit_checksum_column_is_an_error_not_a_panic() {
+    let line1 = "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753";
+    let line2 = "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.8241915741366.";
+    assert!(spectra_sim::Tle::parse(Some("VANGUARD 1".into()), line1, line2).is_err());
+    let swapped_line1 = "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  475.";
+    let line2_ok = "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667";
+    assert!(spectra_sim::Tle::parse(None, swapped_line1, line2_ok).is_err());
+    // A deserialized `Tle` carries public fields, so `elements()` must be just as safe.
+    let tle = spectra_sim::Tle {
+        object_name: None,
+        line1: line1.into(),
+        line2: line2.into(),
+    };
+    assert!(tle.elements().is_err());
+}
