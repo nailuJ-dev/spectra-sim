@@ -14,6 +14,7 @@ pub mod physics;
 pub mod radar;
 pub mod randomization;
 pub mod replay;
+pub mod report;
 pub mod rf;
 pub mod rng;
 #[cfg(feature = "schema")]
@@ -39,6 +40,7 @@ pub use physics::*;
 pub use radar::*;
 pub use randomization::*;
 pub use replay::*;
+pub use report::*;
 pub use rf::*;
 pub use rng::*;
 #[cfg(feature = "schema")]

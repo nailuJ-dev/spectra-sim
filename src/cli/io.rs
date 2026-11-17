@@ -7,6 +7,7 @@ use std::path::Path;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use spectra_sim::formats::{iq_to_npy_bytes, sigmf_data_bytes, sigmf_meta_json};
+use spectra_sim::report::{scenario_validity_ledger, validity_report_markdown};
 use spectra_sim::{
     sigint_golden_scenario, CuasRun, IqCaptureOut, Result, Scenario, SigintRun, SimError,
 };
@@ -111,6 +112,15 @@ pub fn write_cuas_outputs(dir: &Path, run: &CuasRun) -> Result<()> {
         write_json(&dir.join("cuas_isac_scenario.json"), value)?;
     }
     write_json(&dir.join("replay_manifest.json"), &run.manifest)?;
+    Ok(())
+}
+
+/// Writes `validity_report.md` for `scenario` into `dir` (created if missing).
+pub fn write_validity_report(dir: &Path, scenario: &Scenario) -> Result<()> {
+    ensure_dir(dir)?;
+    let path = dir.join("validity_report.md");
+    let report = validity_report_markdown(&scenario_validity_ledger(scenario));
+    fs::write(&path, report).map_err(|error| io_with_path(error, &path))?;
     Ok(())
 }
 

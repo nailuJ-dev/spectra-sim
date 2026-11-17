@@ -16,7 +16,7 @@ use spectra_sim::{run_cuas, run_sigint, DomainRandomization, Result, RunKind, Si
 
 use io::{
     ensure_dir, load_scenario, read_json, write_cuas_outputs, write_iq_extras, write_json,
-    write_sigint_outputs,
+    write_sigint_outputs, write_validity_report,
 };
 
 #[derive(Debug, Parser)]
@@ -259,13 +259,15 @@ fn cmd_sigint(scenario_path: &Path, out: &Path, also: &[ExtraFormat]) -> Result<
     let scenario = load_scenario(scenario_path)?;
     let run = run_sigint(&scenario)?;
     write_sigint_outputs(out, &scenario, &run)?;
+    write_validity_report(out, &scenario)?;
     write_iq_extras(out, &run.simulation.capture, also)
 }
 
 fn cmd_cuas(scenario_path: &Path, out: &Path) -> Result<()> {
     let scenario = load_scenario(scenario_path)?;
     let run = run_cuas(&scenario)?;
-    write_cuas_outputs(out, &run)
+    write_cuas_outputs(out, &run)?;
+    write_validity_report(out, &scenario)
 }
 
 fn cmd_randomize(

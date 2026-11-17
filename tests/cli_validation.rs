@@ -863,3 +863,44 @@ fn single_run_unwritable_output_exits_3_naming_it() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains(nested_arg), "stderr={stderr}");
 }
+
+fn assert_validity_report(path: &std::path::Path) {
+    let report = std::fs::read_to_string(path).expect("validity report exists");
+    assert!(report.contains("# Physics validity report"), "{report}");
+    assert!(report.contains("synthetic data"), "{report}");
+}
+
+#[test]
+fn cli_writes_validity_report() {
+    let sigint = TempDir::new("validity-report-sigint");
+    let output = run_cli(&["sigint", SIGINT_SCENARIO, "--out", sigint.arg()]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_validity_report(&sigint.path().join("validity_report.md"));
+
+    let cuas = TempDir::new("validity-report-cuas");
+    let output = run_cli(&[
+        "cuas",
+        "examples/scenarios/cuas_drone_isac.json",
+        "--out",
+        cuas.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_validity_report(&cuas.path().join("validity_report.md"));
+}
+
+#[test]
+fn sweep_does_not_write_validity_report() {
+    let dir = TempDir::new("validity-report-sweep");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "sigint",
+        "--seeds",
+        "0..1",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(!dir.path().join("seed_0/validity_report.md").exists());
+}
