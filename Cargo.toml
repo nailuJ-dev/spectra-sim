@@ -30,7 +30,7 @@ sgp4 = "=2.4.0"
 sofars = "=0.6.2"
 quick-xml = "=0.41.0"
 clap = { version = "4", features = ["derive"] }
-schemars = { version = "0.8", optional = true }
+schemars = { version = "1.2", optional = true }
 
 [features]
 default = ["schema"]
