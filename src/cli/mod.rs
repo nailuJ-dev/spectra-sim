@@ -3,6 +3,7 @@
 mod examples;
 mod io;
 mod replay_cmd;
+mod sweep;
 mod validate;
 
 use std::path::{Path, PathBuf};
@@ -75,6 +76,30 @@ enum Command {
         #[arg(long, value_enum)]
         kind: replay_cmd::KindArg,
     },
+    /// Run a scenario over a range of seeds (Monte Carlo batch).
+    Sweep {
+        /// Path to the scenario JSON file.
+        scenario: PathBuf,
+        /// Which job to run for every seed.
+        #[arg(long, value_enum)]
+        kind: replay_cmd::KindArg,
+        /// Half-open seed range `A..B` (at most 100000 seeds).
+        // Parsed manually so range errors map to the usual exit code.
+        #[arg(long, allow_hyphen_values = true)]
+        seeds: String,
+        /// Randomization config JSON applied per seed before the run.
+        #[arg(long)]
+        randomization: Option<PathBuf>,
+        /// Worker threads (default: available parallelism).
+        #[arg(long)]
+        jobs: Option<usize>,
+        /// Output directory.
+        #[arg(long, default_value = "artifacts/sweep")]
+        out: PathBuf,
+        /// Write into a non-empty output directory.
+        #[arg(long)]
+        force: bool,
+    },
     /// List or print the example scenarios embedded in this binary.
     Examples {
         #[command(subcommand)]
@@ -138,6 +163,23 @@ fn dispatch(command: Command) -> Result<()> {
             manifest,
             kind,
         } => replay_cmd::run(&scenario, &manifest, kind),
+        Command::Sweep {
+            scenario,
+            kind,
+            seeds,
+            randomization,
+            jobs,
+            out,
+            force,
+        } => sweep::run(
+            &scenario,
+            kind,
+            &seeds,
+            randomization.as_deref(),
+            jobs,
+            &out,
+            force,
+        ),
         Command::Examples { action } => match action {
             ExamplesAction::List => examples::run_list(),
             ExamplesAction::Show { name } => examples::run_show(&name),

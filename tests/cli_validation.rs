@@ -285,3 +285,361 @@ fn replay_cli_exit_codes() {
     assert_eq!(no_kind.status.code(), Some(2));
     std::fs::remove_dir_all(&dir).ok();
 }
+
+/// Unique scratch directory that is removed on drop, even when a test fails.
+struct TempDir(std::path::PathBuf);
+
+impl TempDir {
+    fn new(test: &str) -> Self {
+        let path = std::env::temp_dir().join(format!("spectra-{test}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&path);
+        Self(path)
+    }
+
+    fn path(&self) -> &std::path::Path {
+        &self.0
+    }
+
+    fn arg(&self) -> &str {
+        self.0.to_str().expect("utf-8 path")
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn sorted_file_names(dir: &std::path::Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .expect("read dir")
+        .map(|entry| {
+            entry
+                .expect("dir entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+const SIGINT_SCENARIO: &str = "examples/scenarios/sigint_urban.json";
+
+#[test]
+fn sweep_writes_one_dir_per_seed() {
+    let dir = TempDir::new("sweep-dirs");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "sigint",
+        "--seeds",
+        "0..3",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(
+        sorted_file_names(dir.path()),
+        ["seed_0", "seed_1", "seed_2", "sweep_manifest.json"]
+    );
+
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(dir.path().join("sweep_manifest.json")).expect("read sweep manifest"),
+    )
+    .expect("sweep manifest is JSON");
+    assert_eq!(manifest["schema_version"], "spectra-sim-sweep-v1");
+    assert_eq!(manifest["kind"], "sigint");
+    let entries = manifest["entries"].as_array().expect("entries array");
+    let seeds: Vec<u64> = entries
+        .iter()
+        .map(|entry| entry["seed"].as_u64().expect("seed"))
+        .collect();
+    assert_eq!(seeds, [0, 1, 2]);
+
+    // Each entry hash is the output hash from that seed directory's replay manifest.
+    for entry in entries {
+        let seed = entry["seed"].as_u64().expect("seed");
+        let replay: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(dir.path().join(format!("seed_{seed}/replay_manifest.json")))
+                .expect("read replay manifest"),
+        )
+        .expect("replay manifest is JSON");
+        assert_eq!(replay["output_sha256"], entry["output_sha256"]);
+        assert_eq!(replay["seed"], serde_json::json!(seed));
+    }
+}
+
+#[test]
+fn sweep_sigint_seed_dir_has_exact_file_set() {
+    let dir = TempDir::new("sweep-sigint-files");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "sigint",
+        "--seeds",
+        "4..5",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(
+        sorted_file_names(&dir.path().join("seed_4")),
+        [
+            "iq_capture.json",
+            "replay_manifest.json",
+            "sigint_scenario.json",
+            "truth.json"
+        ]
+    );
+}
+
+#[test]
+fn sweep_cuas_seed_dir_has_exact_file_set() {
+    let dir = TempDir::new("sweep-cuas-files");
+    let output = run_cli(&[
+        "sweep",
+        "examples/scenarios/cuas_drone_isac.json",
+        "--kind",
+        "cuas",
+        "--seeds",
+        "0..2",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(
+        sorted_file_names(&dir.path().join("seed_1")),
+        [
+            "cuas_isac_scenario.json",
+            "cuas_scenario.json",
+            "isac_truth.json",
+            "radar_truth.json",
+            "replay_manifest.json"
+        ]
+    );
+}
+
+#[test]
+fn sweep_is_independent_of_job_count() {
+    let serial = TempDir::new("sweep-jobs1");
+    let parallel = TempDir::new("sweep-jobs4");
+    for (dir, jobs) in [(&serial, "1"), (&parallel, "4")] {
+        let output = run_cli(&[
+            "sweep",
+            SIGINT_SCENARIO,
+            "--kind",
+            "sigint",
+            "--seeds",
+            "0..4",
+            "--randomization",
+            "examples/scenarios/randomization.json",
+            "--jobs",
+            jobs,
+            "--out",
+            dir.arg(),
+        ]);
+        assert_eq!(output.status.code(), Some(0), "{output:?}");
+    }
+    let a = std::fs::read(serial.path().join("sweep_manifest.json")).expect("read");
+    let b = std::fs::read(parallel.path().join("sweep_manifest.json")).expect("read");
+    assert_eq!(a, b);
+}
+
+#[test]
+fn sweep_refuses_non_empty_out_without_force() {
+    let dir = TempDir::new("sweep-force");
+    std::fs::create_dir_all(dir.path()).expect("create dir");
+    std::fs::write(dir.path().join("keep.txt"), "x").expect("write file");
+    let args = |force: bool| {
+        let mut args = vec![
+            "sweep",
+            SIGINT_SCENARIO,
+            "--kind",
+            "sigint",
+            "--seeds",
+            "0..1",
+            "--out",
+            dir.arg(),
+        ];
+        if force {
+            args.push("--force");
+        }
+        run_cli(&args)
+    };
+    let refused = args(false);
+    assert_eq!(refused.status.code(), Some(3), "{refused:?}");
+    assert!(
+        String::from_utf8_lossy(&refused.stderr).contains("not empty"),
+        "{refused:?}"
+    );
+    assert!(!dir.path().join("sweep_manifest.json").exists());
+
+    let forced = args(true);
+    assert_eq!(forced.status.code(), Some(0), "{forced:?}");
+    assert!(dir.path().join("sweep_manifest.json").exists());
+    assert!(dir.path().join("keep.txt").exists());
+}
+
+#[test]
+fn sweep_unwritable_out_exits_3() {
+    let dir = TempDir::new("sweep-unwritable");
+    std::fs::create_dir_all(dir.path()).expect("create dir");
+    let blocker = dir.path().join("file");
+    std::fs::write(&blocker, "x").expect("write file");
+    let nested = blocker.join("out");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "sigint",
+        "--seeds",
+        "0..1",
+        "--out",
+        nested.to_str().expect("utf-8 path"),
+    ]);
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+}
+
+#[test]
+fn sweep_rejects_bad_seeds_and_jobs() {
+    for seeds in ["5..5", "10..2", "a..b", "0..1000000000", "3"] {
+        let dir = TempDir::new("sweep-bad-seeds");
+        let output = run_cli(&[
+            "sweep",
+            SIGINT_SCENARIO,
+            "--kind",
+            "sigint",
+            "--seeds",
+            seeds,
+            "--out",
+            dir.arg(),
+        ]);
+        assert_eq!(output.status.code(), Some(2), "seeds={seeds}: {output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("--seeds"), "seeds={seeds}: {stderr}");
+        assert!(!dir.path().exists(), "no output for bad seeds={seeds}");
+    }
+    let dir = TempDir::new("sweep-bad-jobs");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "sigint",
+        "--seeds",
+        "0..2",
+        "--jobs",
+        "0",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--jobs"));
+}
+
+#[test]
+fn sweep_with_randomization_changes_hashes() {
+    let dir = TempDir::new("sweep-randomization");
+    let output = run_cli(&[
+        "sweep",
+        SIGINT_SCENARIO,
+        "--kind",
+        "sigint",
+        "--seeds",
+        "0..3",
+        "--randomization",
+        "examples/scenarios/randomization.json",
+        "--out",
+        dir.arg(),
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(dir.path().join("sweep_manifest.json")).expect("read sweep manifest"),
+    )
+    .expect("sweep manifest is JSON");
+    let mut hashes: Vec<&str> = manifest["entries"]
+        .as_array()
+        .expect("entries array")
+        .iter()
+        .map(|entry| entry["output_sha256"].as_str().expect("hash"))
+        .collect();
+    assert_eq!(hashes.len(), 3);
+    hashes.sort_unstable();
+    hashes.dedup();
+    assert_eq!(hashes.len(), 3, "hashes must differ across seeds");
+}
+
+#[test]
+fn sweep_help_lists_flags() {
+    let output = run_cli(&["sweep", "--help"]);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for flag in [
+        "--kind",
+        "--seeds",
+        "--randomization",
+        "--jobs",
+        "--out",
+        "--force",
+    ] {
+        assert!(stdout.contains(flag), "missing {flag} in {stdout}");
+    }
+}
+
+#[test]
+fn replay_reports_version_mismatch() {
+    let dir = TempDir::new("replay-version");
+    let out = run_cli(&["sigint", SIGINT_SCENARIO, "--out", dir.arg()]);
+    assert_eq!(out.status.code(), Some(0));
+    let text = std::fs::read_to_string(dir.path().join("replay_manifest.json")).expect("read");
+    let mut value: serde_json::Value = serde_json::from_str(&text).expect("json");
+    value["simulator_version"] = serde_json::json!("0.0.0");
+    let hash = value["output_sha256"].as_str().expect("hash").to_string();
+    let flipped = if hash.starts_with('0') { "1" } else { "0" };
+    value["output_sha256"] = serde_json::json!(format!("{flipped}{}", &hash[1..]));
+    let manifest = dir.path().join("old_version_manifest.json");
+    std::fs::write(&manifest, value.to_string()).expect("write manifest");
+
+    let out = run_cli(&[
+        "replay",
+        SIGINT_SCENARIO,
+        manifest.to_str().expect("utf-8 path"),
+        "--kind",
+        "sigint",
+    ]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("version mismatch"), "stderr={stderr}");
+    assert!(stderr.contains("0.0.0"), "stderr={stderr}");
+}
+
+#[test]
+fn replay_reports_scenario_mismatch() {
+    let dir = TempDir::new("replay-scenario");
+    let out = run_cli(&["sigint", SIGINT_SCENARIO, "--out", dir.arg()]);
+    assert_eq!(out.status.code(), Some(0));
+    let source = std::fs::read_to_string(SIGINT_SCENARIO).expect("read scenario");
+    let mut value: serde_json::Value = serde_json::from_str(&source).expect("json");
+    let seed = value["seed"].as_u64().expect("scenario seed");
+    value["seed"] = serde_json::json!(seed + 1);
+    let changed = dir.path().join("changed_scenario.json");
+    std::fs::write(&changed, value.to_string()).expect("write scenario");
+
+    let out = run_cli(&[
+        "replay",
+        changed.to_str().expect("utf-8 path"),
+        dir.path()
+            .join("replay_manifest.json")
+            .to_str()
+            .expect("utf-8 path"),
+        "--kind",
+        "sigint",
+    ]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("scenario mismatch"), "stderr={stderr}");
+}
