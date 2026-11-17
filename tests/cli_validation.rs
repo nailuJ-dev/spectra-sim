@@ -35,7 +35,14 @@ fn help_lists_subcommands() {
     let output = run_cli(&["--help"]);
     assert_eq!(output.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for name in ["sigint", "cuas", "randomize", "validate", "examples"] {
+    for name in [
+        "sigint",
+        "cuas",
+        "randomize",
+        "validate",
+        "replay",
+        "examples",
+    ] {
         assert!(stdout.contains(name), "missing {name} in stdout={stdout}");
     }
 }
@@ -231,4 +238,50 @@ fn examples_show_unknown_exits_2() {
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("no_such_example"), "stderr={stderr}");
+}
+
+#[test]
+fn replay_cli_exit_codes() {
+    let dir = std::env::temp_dir().join(format!("spectra-replay-cli-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let scenario = "examples/scenarios/sigint_urban.json";
+    let out = run_cli(&["sigint", scenario, "--out", dir.to_str().unwrap()]);
+    assert_eq!(out.status.code(), Some(0));
+    let manifest = dir.join("replay_manifest.json");
+    let manifest_arg = manifest.to_str().unwrap();
+
+    let ok = run_cli(&["replay", scenario, manifest_arg, "--kind", "sigint"]);
+    assert_eq!(ok.status.code(), Some(0));
+    assert!(String::from_utf8_lossy(&ok.stdout).contains("MATCH"));
+
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let hash = value["output_sha256"].as_str().unwrap().to_string();
+    let flipped = if hash.starts_with('0') { "1" } else { "0" };
+    let tampered = text.replace(&hash, &format!("{flipped}{}", &hash[1..]));
+    let bad = dir.join("tampered.json");
+    std::fs::write(&bad, tampered).unwrap();
+    let out = run_cli(&[
+        "replay",
+        scenario,
+        bad.to_str().unwrap(),
+        "--kind",
+        "sigint",
+    ]);
+    assert_eq!(out.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("output mismatch"), "stderr={stderr}");
+
+    let missing = run_cli(&[
+        "replay",
+        scenario,
+        "/nonexistent-manifest.json",
+        "--kind",
+        "sigint",
+    ]);
+    assert_eq!(missing.status.code(), Some(3));
+
+    let no_kind = run_cli(&["replay", scenario, manifest_arg]);
+    assert_eq!(no_kind.status.code(), Some(2));
+    std::fs::remove_dir_all(&dir).ok();
 }

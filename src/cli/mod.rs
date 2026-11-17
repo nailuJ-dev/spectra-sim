@@ -2,6 +2,7 @@
 
 mod examples;
 mod io;
+mod replay_cmd;
 mod validate;
 
 use std::path::{Path, PathBuf};
@@ -64,6 +65,16 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Re-run a scenario and verify it against a stored replay manifest.
+    Replay {
+        /// Path to the scenario JSON file.
+        scenario: PathBuf,
+        /// Path to the replay_manifest.json written by a previous run.
+        manifest: PathBuf,
+        /// Which job the manifest was produced by.
+        #[arg(long, value_enum)]
+        kind: replay_cmd::KindArg,
+    },
     /// List or print the example scenarios embedded in this binary.
     Examples {
         #[command(subcommand)]
@@ -122,6 +133,11 @@ fn dispatch(command: Command) -> Result<()> {
             out,
         } => cmd_randomize(&scenario, &randomization, seed.as_deref(), &out),
         Command::Validate { scenario, json } => validate::run(&scenario, json),
+        Command::Replay {
+            scenario,
+            manifest,
+            kind,
+        } => replay_cmd::run(&scenario, &manifest, kind),
         Command::Examples { action } => match action {
             ExamplesAction::List => examples::run_list(),
             ExamplesAction::Show { name } => examples::run_show(&name),
