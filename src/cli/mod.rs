@@ -1,5 +1,6 @@
 //! Command-line interface for the `spectra-sim` binary.
 
+mod examples;
 mod io;
 mod validate;
 
@@ -63,6 +64,22 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// List or print the example scenarios embedded in this binary.
+    Examples {
+        #[command(subcommand)]
+        action: ExamplesAction,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum ExamplesAction {
+    /// List the embedded example names.
+    List,
+    /// Print an embedded example to stdout.
+    Show {
+        /// Example name (see `examples list`).
+        name: String,
+    },
 }
 
 /// Maps an error to the process exit code.
@@ -105,6 +122,10 @@ fn dispatch(command: Command) -> Result<()> {
             out,
         } => cmd_randomize(&scenario, &randomization, seed.as_deref(), &out),
         Command::Validate { scenario, json } => validate::run(&scenario, json),
+        Command::Examples { action } => match action {
+            ExamplesAction::List => examples::run_list(),
+            ExamplesAction::Show { name } => examples::run_show(&name),
+        },
     }
 }
 

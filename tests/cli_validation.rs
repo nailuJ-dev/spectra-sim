@@ -35,7 +35,7 @@ fn help_lists_subcommands() {
     let output = run_cli(&["--help"]);
     assert_eq!(output.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for name in ["sigint", "cuas", "randomize", "validate"] {
+    for name in ["sigint", "cuas", "randomize", "validate", "examples"] {
         assert!(stdout.contains(name), "missing {name} in stdout={stdout}");
     }
 }
@@ -134,6 +134,7 @@ fn validate_rejects_duplicate_ids() {
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains(&id), "stderr={stderr}");
+    assert!(stderr.contains("duplicate"), "stderr={stderr}");
 }
 
 #[test]
@@ -146,7 +147,18 @@ fn validate_json_flag() {
     assert_eq!(output.status.code(), Some(0));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).expect("stdout is JSON");
     assert_eq!(value["valid"], serde_json::json!(true));
-    assert!(value["jobs"].is_array());
+    assert_eq!(value["jobs"], serde_json::json!(["cuas"]));
+}
+
+#[test]
+fn validate_prints_exact_summary_line() {
+    let output = run_cli(&["validate", "examples/scenarios/sigint_urban.json"]);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(
+        stdout,
+        "ok: 1 emitters, 1 receivers, 0 targets, jobs: [sigint]\n"
+    );
 }
 
 #[test]
@@ -186,4 +198,37 @@ fn randomize_negative_seed_keeps_legacy_message() {
         stderr.contains("--seed must be an unsigned integer: -5"),
         "stderr={stderr}"
     );
+}
+
+#[test]
+fn examples_list_has_eight_entries() {
+    let output = run_cli(&["examples", "list"]);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 8, "stdout={stdout}");
+    assert!(lines.contains(&"sigint_urban"), "stdout={stdout}");
+    let mut sorted = lines.clone();
+    sorted.sort_unstable();
+    assert_eq!(lines, sorted, "list must be sorted");
+}
+
+#[test]
+fn examples_show_round_trips() {
+    let output = run_cli(&["examples", "show", "sigint_urban"]);
+    assert_eq!(output.status.code(), Some(0));
+    let expected = std::fs::read(format!(
+        "{}/examples/scenarios/sigint_urban.json",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read example");
+    assert_eq!(output.stdout, expected);
+}
+
+#[test]
+fn examples_show_unknown_exits_2() {
+    let output = run_cli(&["examples", "show", "no_such_example"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("no_such_example"), "stderr={stderr}");
 }
