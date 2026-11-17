@@ -1,6 +1,7 @@
 //! Command-line interface for the `spectra-sim` binary.
 
 mod io;
+mod validate;
 
 use std::path::{Path, PathBuf};
 
@@ -48,11 +49,19 @@ enum Command {
         randomization: PathBuf,
         /// Seed for the randomization (defaults to the scenario seed).
         // Parsed manually so the legacy error message is preserved.
-        #[arg(long)]
+        #[arg(long, allow_hyphen_values = true)]
         seed: Option<String>,
         /// Output file.
         #[arg(long, default_value = "artifacts/randomized_scenario.json")]
         out: PathBuf,
+    },
+    /// Check a scenario file without running a simulation.
+    Validate {
+        /// Path to the scenario JSON file.
+        scenario: PathBuf,
+        /// Print the result as JSON.
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -95,6 +104,7 @@ fn dispatch(command: Command) -> Result<()> {
             seed,
             out,
         } => cmd_randomize(&scenario, &randomization, seed.as_deref(), &out),
+        Command::Validate { scenario, json } => validate::run(&scenario, json),
     }
 }
 
