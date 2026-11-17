@@ -8,3 +8,11 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+  - package-ecosystem: maven
+    directory: "/orekit-sidecar"
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: "/adapters/sionna_rt"
+    schedule:
+      interval: weekly

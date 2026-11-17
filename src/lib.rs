@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(missing_debug_implementations)]
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod error;
 pub mod export;
