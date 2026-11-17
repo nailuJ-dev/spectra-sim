@@ -62,15 +62,18 @@ jobs:
 
   supply-chain:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write # rustsec/audit-check posts its result as a check run
     steps:
       - uses: actions/checkout@v6
-      - uses: EmbarkStudios/cargo-deny-action@v2
-      - uses: rustsec/audit-check@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+      - uses: EmbarkStudios/cargo-deny-action@v2
+      # rustsec/audit-check compiles cargo-audit with the toolchain pinned by
+      # rust-toolchain.toml (1.85.0), which the latest cargo-audit no longer builds
+      # on. Install the prebuilt binary and run the same gate as release_check.sh.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: cargo audit --deny warnings
 
   orekit-sidecar:
     runs-on: ubuntu-latest

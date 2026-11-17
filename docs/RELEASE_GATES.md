@@ -18,7 +18,7 @@ cargo audit --deny warnings
 cargo deny check
 ```
 
-`scripts/release_check.sh` runs both. The CI `supply-chain` job runs `cargo-deny-action` and `rustsec/audit-check` without deny-warnings (`deny.toml` has `unmaintained = "workspace"`), so it reports warnings but does not fail on them.
+`scripts/release_check.sh` runs both. The CI `supply-chain` job runs `cargo-deny-action` and `cargo audit --deny warnings` (prebuilt `cargo-audit` via `taiki-e/install-action`, because `rustsec/audit-check` builds it with the repository's pinned 1.85.0 toolchain, which the latest `cargo-audit` no longer supports). Both therefore fail on any new advisory, including unmaintained crates.
 
 Documented exception (maintainer-approved): RUSTSEC-2026-0543 (`chrono` 0.4.45 unmaintained; informational, not a vulnerability) is ignored in `.cargo/audit.toml` and `deny.toml` because `chrono` is a mandatory dependency of `sgp4 =2.4.0` (the latest release) with no upgrade path. Keep the two entries in sync and revisit when `sgp4` drops or replaces `chrono`; any other advisory still fails `cargo audit --deny warnings`.
 
