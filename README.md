@@ -76,7 +76,7 @@ The space RF layer supports the architecture required for:
 * iterative light-time computation
 * slant range
 * line-of-sight range rate
-* one-way Doppler shift (Doppler rate is not yet a native observable)
+* one-way Doppler shift (its rate is available via `doppler_rate_hz_per_s`, a central difference)
 * Earth-space RF links
 * antenna pointing and geometry
 
