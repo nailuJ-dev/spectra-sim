@@ -14,7 +14,8 @@ use clap::{Parser, Subcommand, ValueEnum};
 use spectra_sim::{run_cuas, run_sigint, DomainRandomization, Result, RunKind, SimError};
 
 use io::{
-    ensure_dir, load_scenario, read_json, write_cuas_outputs, write_json, write_sigint_outputs,
+    ensure_dir, load_scenario, read_json, write_cuas_outputs, write_iq_extras, write_json,
+    write_sigint_outputs,
 };
 
 #[derive(Debug, Parser)]
@@ -54,6 +55,15 @@ impl From<KindArg> for RunKind {
     }
 }
 
+/// Extra I/Q interchange formats written by `sigint --also`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ExtraFormat {
+    /// NumPy `.npy` (`complex64`).
+    Npy,
+    /// SigMF `.sigmf-data` + `.sigmf-meta` (`cf32_le`).
+    Sigmf,
+}
+
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Run a SIGINT scenario and write the capture, truth and manifest.
@@ -63,6 +73,9 @@ enum Command {
         /// Output directory.
         #[arg(long, default_value = "artifacts/sigint")]
         out: PathBuf,
+        /// Also write the I/Q capture as these formats (comma-separated or repeated).
+        #[arg(long, value_enum, value_delimiter = ',')]
+        also: Vec<ExtraFormat>,
     },
     /// Run a counter-UAS scenario and write radar/ISAC truth and manifest.
     Cuas {
@@ -185,7 +198,11 @@ pub fn run() -> i32 {
 
 fn dispatch(command: Command) -> Result<()> {
     match command {
-        Command::Sigint { scenario, out } => cmd_sigint(&scenario, &out),
+        Command::Sigint {
+            scenario,
+            out,
+            also,
+        } => cmd_sigint(&scenario, &out, &also),
         Command::Cuas { scenario, out } => cmd_cuas(&scenario, &out),
         Command::Randomize {
             scenario,
@@ -225,10 +242,11 @@ fn dispatch(command: Command) -> Result<()> {
     }
 }
 
-fn cmd_sigint(scenario_path: &Path, out: &Path) -> Result<()> {
+fn cmd_sigint(scenario_path: &Path, out: &Path, also: &[ExtraFormat]) -> Result<()> {
     let scenario = load_scenario(scenario_path)?;
     let run = run_sigint(&scenario)?;
-    write_sigint_outputs(out, &scenario, &run)
+    write_sigint_outputs(out, &scenario, &run)?;
+    write_iq_extras(out, &run.simulation.capture, also)
 }
 
 fn cmd_cuas(scenario_path: &Path, out: &Path) -> Result<()> {

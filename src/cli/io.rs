@@ -6,7 +6,12 @@ use std::path::Path;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use spectra_sim::{sigint_golden_scenario, CuasRun, Result, Scenario, SigintRun, SimError};
+use spectra_sim::formats::{iq_to_npy_bytes, sigmf_data_bytes, sigmf_meta_json};
+use spectra_sim::{
+    sigint_golden_scenario, CuasRun, IqCaptureOut, Result, Scenario, SigintRun, SimError,
+};
+
+use super::ExtraFormat;
 
 /// Maximum accepted size of any input file (scenario, manifest, config).
 const MAX_INPUT_BYTES: usize = 32 * 1024 * 1024;
@@ -71,6 +76,26 @@ pub fn write_sigint_outputs(dir: &Path, scenario: &Scenario, run: &SigintRun) ->
     write_json(&dir.join("sigint_scenario.json"), &sdk_scenario)?;
     write_json(&dir.join("truth.json"), &run.simulation.truth)?;
     write_json(&dir.join("replay_manifest.json"), &run.manifest)?;
+    Ok(())
+}
+
+/// Writes the optional I/Q interchange files next to `iq_capture.json`.
+/// Duplicate formats are written once. `dir` must already exist.
+pub fn write_iq_extras(dir: &Path, capture: &IqCaptureOut, formats: &[ExtraFormat]) -> Result<()> {
+    if formats.contains(&ExtraFormat::Npy) {
+        let path = dir.join("iq_capture.npy");
+        fs::write(&path, iq_to_npy_bytes(capture)).map_err(|error| io_with_path(error, &path))?;
+    }
+    if formats.contains(&ExtraFormat::Sigmf) {
+        let data_name = "iq_capture.sigmf-data";
+        let data_path = dir.join(data_name);
+        fs::write(&data_path, sigmf_data_bytes(capture))
+            .map_err(|error| io_with_path(error, &data_path))?;
+        write_json(
+            &dir.join("iq_capture.sigmf-meta"),
+            &sigmf_meta_json(capture, data_name),
+        )?;
+    }
     Ok(())
 }
 
