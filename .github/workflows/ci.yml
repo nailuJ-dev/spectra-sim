@@ -81,9 +81,10 @@ jobs:
 
   # Advisory until 0.5.0 is tagged. The crate is not published on crates.io, so
   # there is no registry baseline; compare against the merged 0.4.1 release
-  # commit instead. Once v0.5.0 exists, move baseline-rev to that tag and drop
-  # continue-on-error. Needs full git history (so the baseline rev exists) and
-  # therefore keeps the default persisted checkout credentials.
+  # commit instead. 0.5.0 is the next release: after v0.5.0 is tagged, move
+  # baseline-rev to that tag and drop continue-on-error. Needs full git
+  # history (so the baseline rev exists) and therefore keeps the default
+  # persisted checkout credentials.
   # cargo-semver-checks needs a recent rustc (>= 1.93), so this job overrides
   # the repo's rust-toolchain.toml pin (1.85) with stable via RUSTUP_TOOLCHAIN.
   # It currently reports the intended 0.5.0 break (ReplayManifest gained

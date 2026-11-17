@@ -62,7 +62,7 @@ cargo run -q -- schema cuas-run > schemas/cuas_run.schema.json
 
 ## Releasing
 
-1. Bump the version everywhere, in lock-step: root `Cargo.toml`, `bindings/python/Cargo.toml`, `orekit-sidecar/pom.xml`, the JAR name in `scripts/release_check.sh`, and `Cargo.lock` (a plain `cargo build` refreshes it; commit the result).
+1. Bump the version everywhere, in lock-step: root `Cargo.toml`, `bindings/python/Cargo.toml`, `orekit-sidecar/pom.xml`, the JAR name in `scripts/release_check.sh`, `Cargo.lock` (a plain `cargo build` refreshes it; commit the result) and `fuzz/Cargo.lock` (`cargo metadata --manifest-path fuzz/Cargo.toml` refreshes it, because it pins the path dependency's version).
 2. Update `CHANGELOG.md`.
 3. Run `scripts/release_check.sh` (needs cargo-audit, cargo-deny, Maven and Java).
 4. Tag `vX.Y.Z` (pre-releases: `vX.Y.Z-rc.N`) and push the tag. `release.yml` refuses to publish unless the tag equals the `Cargo.toml` version and the `pom.xml` version, then builds the binaries, JAR and GHCR image.

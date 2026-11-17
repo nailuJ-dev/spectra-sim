@@ -57,3 +57,77 @@ fn output_hash_is_unchanged() {
         "a40a02e982b9d8223132993f27274fc26cc86516b0cff5c507b94a34f6766cc2"
     );
 }
+
+/// Text of the first `<tag>value</tag>` found after `anchor` in `haystack`.
+fn element_after(haystack: &str, anchor: &str, tag: &str) -> String {
+    let start = haystack
+        .find(anchor)
+        .unwrap_or_else(|| panic!("anchor {anchor:?} not found"))
+        + anchor.len();
+    let rest = &haystack[start..];
+    let open = format!("<{tag}>");
+    let close = format!("</{tag}>");
+    let from = rest
+        .find(&open)
+        .unwrap_or_else(|| panic!("<{tag}> not found after {anchor:?}"))
+        + open.len();
+    let to = rest[from..]
+        .find(&close)
+        .unwrap_or_else(|| panic!("</{tag}> not found after {anchor:?}"))
+        + from;
+    rest[from..to].trim().to_string()
+}
+
+/// The crate, the Orekit sidecar, the bindings and the release tooling must
+/// all name the same version; a drifting JAR name or pom silently breaks the
+/// release check.
+#[test]
+fn provenance_versions_agree() {
+    let version = env!("CARGO_PKG_VERSION");
+
+    // The sidecar's own <version> is the first one after its <artifactId>
+    // (the parent/dependency versions come later in the file).
+    let pom = include_str!("../orekit-sidecar/pom.xml");
+    let pom_version = element_after(
+        pom,
+        "<artifactId>spectra-orekit-sidecar</artifactId>",
+        "version",
+    );
+    assert_eq!(pom_version, version, "orekit-sidecar/pom.xml <version>");
+
+    let jar = format!("spectra-orekit-sidecar-{version}.jar");
+    let release_check = include_str!("../scripts/release_check.sh");
+    assert!(
+        release_check.contains(&jar),
+        "scripts/release_check.sh must reference {jar}"
+    );
+    let sidecar_readme = include_str!("../orekit-sidecar/README.md");
+    assert!(
+        sidecar_readme.contains(&jar),
+        "orekit-sidecar/README.md must reference {jar}"
+    );
+
+    let bindings = include_str!("../bindings/python/Cargo.toml");
+    let bindings_version = toml_package_version(bindings);
+    assert_eq!(
+        bindings_version, version,
+        "bindings/python/Cargo.toml [package] version"
+    );
+}
+
+/// `version = "x"` inside the `[package]` table of a Cargo manifest.
+fn toml_package_version(manifest: &str) -> String {
+    let package = manifest
+        .split("[package]")
+        .nth(1)
+        .expect("[package] table")
+        .split("\n[")
+        .next()
+        .expect("package body");
+    let line = package
+        .lines()
+        .map(str::trim)
+        .find(|l| l.starts_with("version") && l.contains('='))
+        .expect("version line in [package]");
+    line.split('"').nth(1).expect("quoted version").to_string()
+}
