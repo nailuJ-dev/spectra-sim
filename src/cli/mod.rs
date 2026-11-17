@@ -2,6 +2,7 @@
 
 mod examples;
 mod io;
+mod plot_cmd;
 mod replay_cmd;
 #[cfg(feature = "schema")]
 mod schema_cmd;
@@ -142,6 +143,17 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Render SVG plots (constellation, spectrum, spectrogram) of an I/Q capture.
+    Plot {
+        /// Path to an iq_capture.json written by `sigint`.
+        capture: PathBuf,
+        /// Output directory.
+        #[arg(long, default_value = "artifacts/plots")]
+        out: PathBuf,
+        /// FFT length for the spectrum and spectrogram (power of two, 2 to 1048576).
+        #[arg(long, default_value_t = 256)]
+        fft: usize,
+    },
     /// List or print the example scenarios embedded in this binary.
     Examples {
         #[command(subcommand)]
@@ -233,6 +245,7 @@ fn dispatch(command: Command) -> Result<()> {
             &out,
             force,
         ),
+        Command::Plot { capture, out, fft } => plot_cmd::run(&capture, &out, fft),
         Command::Examples { action } => match action {
             ExamplesAction::List => examples::run_list(),
             ExamplesAction::Show { name } => examples::run_show(&name),

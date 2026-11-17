@@ -21,6 +21,7 @@ pub mod schema;
 pub mod simulator;
 pub mod space;
 pub mod validity;
+pub mod viz;
 pub mod water;
 pub mod world;
 

@@ -42,6 +42,7 @@ fn help_lists_subcommands() {
         "validate",
         "replay",
         "sweep",
+        "plot",
         "examples",
     ] {
         assert!(stdout.contains(name), "missing {name} in stdout={stdout}");
