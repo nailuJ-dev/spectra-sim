@@ -45,7 +45,7 @@ CI fails if line coverage of the root crate drops below the threshold in `.githu
 
 ```bash
 python3 -m venv .venv-bindings
-.venv-bindings/bin/pip install maturin pytest numpy
+.venv-bindings/bin/pip install "maturin>=1.5,<2" "pytest>=8" "numpy>=1.24"
 VIRTUAL_ENV=$PWD/.venv-bindings .venv-bindings/bin/maturin develop --locked -m bindings/python/Cargo.toml
 .venv-bindings/bin/pytest bindings/python/tests
 ```

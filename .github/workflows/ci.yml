@@ -54,7 +54,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m venv .venv-bindings
-      - run: .venv-bindings/bin/pip install --disable-pip-version-check maturin pytest numpy
+      - run: .venv-bindings/bin/pip install --disable-pip-version-check "maturin>=1.5,<2" "pytest>=8" "numpy>=1.24"
       - run: .venv-bindings/bin/maturin develop --locked -m bindings/python/Cargo.toml
         env:
           VIRTUAL_ENV: ${{ github.workspace }}/.venv-bindings
@@ -62,6 +62,9 @@ jobs:
 
   supply-chain:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write # rustsec/audit-check posts its result as a check run
     steps:
       - uses: actions/checkout@v6
       - uses: EmbarkStudios/cargo-deny-action@v2

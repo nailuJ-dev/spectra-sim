@@ -68,6 +68,17 @@ Each `sigint` / `cuas` run also writes `validity_report.md`. Its scope is the pr
 | `rician` propagation | validated with warnings | idealised statistical model, not calibrated against measurements |
 | radar, ISAC, antenna-pattern and receiver models | not yet catalogued in the validity report | no entry in the report |
 
+## What's new in 0.5.0
+
+Command-line `validate`, `examples`, `replay`, `sweep`, `plot` and `schema`; `.npy` / SigMF export; SVG plots; a validity report; published JSON Schemas; a native Doppler-rate observable; Python bindings; a tag-driven release workflow; and fuzzing, coverage and semver CI gates. Output hashes are unchanged from 0.4.1. Breaking and behavioural changes (I/O errors now exit 3, `#[non_exhaustive]` on `RunKind` / `ReplayVerdict`, a 32 MiB input cap, calendar years limited to -4799..=9999) are listed in [`CHANGELOG.md`](CHANGELOG.md).
+
+### Known limitations
+
+* The validity report covers the selected propagation model and a synthetic-data notice only; radar, ISAC, antenna and receiver models are not catalogued yet.
+* Release binaries are built on GitHub's `ubuntu-latest`, `macos-latest` (Apple silicon, so no Intel macOS binary) and `windows-latest` runners; the Linux binary links the runner's glibc.
+* The `sigint-run` / `cuas-run` JSON Schemas describe in-memory run results, not a single file written by the CLI.
+* The Python package is not published to PyPI; build it from source (see above).
+
 ## What it does
 
 `spectra-sim` models the physical environment between emitters, propagation media, sensors and receivers.
