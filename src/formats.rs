@@ -50,15 +50,15 @@ pub fn sigmf_data_bytes(capture: &IqCaptureOut) -> Vec<u8> {
 }
 
 /// Builds the SigMF metadata (`.sigmf-meta`) for the dataset stored in
-/// `data_file_name`. SigMF pairs the two files by shared basename, so the name
-/// is not embedded (no `core:dataset`); it is part of the signature so callers
-/// state which file the metadata describes. The checksum field is omitted.
-pub fn sigmf_meta_json(capture: &IqCaptureOut, _data_file_name: &str) -> Value {
+/// `data_file_name`, which is recorded as `core:dataset`. The checksum field
+/// is omitted.
+pub fn sigmf_meta_json(capture: &IqCaptureOut, data_file_name: &str) -> Value {
     json!({
         "global": {
             "core:datatype": "cf32_le",
             "core:sample_rate": capture.sample_rate_hz,
-            "core:version": "1.0.0"
+            "core:version": "1.0.0",
+            "core:dataset": data_file_name
         },
         "captures": [{
             "core:sample_start": 0,

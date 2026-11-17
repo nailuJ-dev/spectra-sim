@@ -122,7 +122,8 @@ mod formats_export {
             "global": {
                 "core:datatype": "cf32_le",
                 "core:sample_rate": 2_000_000.0,
-                "core:version": "1.0.0"
+                "core:version": "1.0.0",
+                "core:dataset": "iq_capture.sigmf-data"
             },
             "captures": [{"core:sample_start": 0, "core:frequency": 915_000_000.0}],
             "annotations": []
