@@ -5,6 +5,7 @@ use crate::{AntennaPatternModel, Result, SimError, Vec3};
 const MAX_ENTITIES: usize = 4_096;
 const MAX_TEXT: usize = 4_096;
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct KinematicState {
@@ -28,6 +29,7 @@ impl KinematicState {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Antenna {
@@ -54,6 +56,7 @@ impl Antenna {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Waveform {
@@ -114,6 +117,7 @@ impl Waveform {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Emitter {
@@ -138,6 +142,7 @@ impl Emitter {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Receiver {
@@ -188,6 +193,7 @@ impl Receiver {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TargetKind {
@@ -199,6 +205,7 @@ pub enum TargetKind {
     Other,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CooperativeIdentity {
@@ -224,6 +231,7 @@ impl CooperativeIdentity {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Target {
@@ -292,6 +300,7 @@ impl Target {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Environment {
@@ -323,6 +332,7 @@ impl Environment {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PropagationModel {
@@ -352,6 +362,7 @@ impl PropagationModel {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RadarConfig {
@@ -409,6 +420,7 @@ impl RadarConfig {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IsacConfig {
@@ -473,6 +485,7 @@ impl IsacConfig {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Origin {
@@ -497,6 +510,7 @@ impl Origin {
     }
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SigintJob {
@@ -505,6 +519,7 @@ pub struct SigintJob {
     pub samples: usize,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CuasJob {
@@ -514,6 +529,7 @@ pub struct CuasJob {
     pub isac: Option<IsacConfig>,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Scenario {

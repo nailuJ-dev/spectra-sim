@@ -10,6 +10,7 @@ use crate::{
 const RADAR_RNG_DOMAIN: u64 = 0x5241_4441_525F_5631;
 const ISAC_RNG_DOMAIN: u64 = 0x4953_4143_5F56_3101;
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SigintRun {
@@ -17,6 +18,7 @@ pub struct SigintRun {
     pub manifest: ReplayManifest,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CuasRun {

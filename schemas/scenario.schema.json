@@ -1,0 +1,888 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "Antenna": {
+      "additionalProperties": false,
+      "properties": {
+        "cable_loss_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "gain_dbi": {
+          "format": "double",
+          "type": "number"
+        },
+        "pattern": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AntennaPatternModel"
+            }
+          ],
+          "default": {
+            "kind": "isotropic"
+          }
+        },
+        "polarization_loss_db": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "cable_loss_db",
+        "gain_dbi",
+        "polarization_loss_db"
+      ],
+      "type": "object"
+    },
+    "AntennaPatternModel": {
+      "description": "Serializable antenna-pattern model used by terrestrial scenario entities.\n\nThe legacy scalar `gain_dbi` remains the boresight gain. Pattern values are applied relative to that gain, except `floor_gain_dbi`, which is an absolute lower gain bound.",
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "isotropic"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "floor_gain_dbi": {
+              "format": "double",
+              "type": "number"
+            },
+            "half_power_beamwidth_deg": {
+              "format": "double",
+              "type": "number"
+            },
+            "kind": {
+              "enum": [
+                "gaussian"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "floor_gain_dbi",
+            "half_power_beamwidth_deg",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "floor_gain_dbi": {
+              "format": "double",
+              "type": "number"
+            },
+            "horizontal_half_power_beamwidth_deg": {
+              "format": "double",
+              "type": "number"
+            },
+            "kind": {
+              "enum": [
+                "elliptical_gaussian"
+              ],
+              "type": "string"
+            },
+            "vertical_half_power_beamwidth_deg": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "floor_gain_dbi",
+            "horizontal_half_power_beamwidth_deg",
+            "kind",
+            "vertical_half_power_beamwidth_deg"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`(off_axis_deg, relative_gain_db)` samples. Relative gain must be <= 0.",
+          "properties": {
+            "kind": {
+              "enum": [
+                "tabulated_relative"
+              ],
+              "type": "string"
+            },
+            "samples": {
+              "items": {
+                "items": [
+                  {
+                    "format": "double",
+                    "type": "number"
+                  },
+                  {
+                    "format": "double",
+                    "type": "number"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "samples"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "CooperativeIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "source_confidence": {
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "identity",
+        "kind",
+        "source_confidence"
+      ],
+      "type": "object"
+    },
+    "CuasJob": {
+      "additionalProperties": false,
+      "properties": {
+        "isac": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsacConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "radar": {
+          "$ref": "#/definitions/RadarConfig"
+        },
+        "sensor_id": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "radar",
+        "sensor_id",
+        "target_id"
+      ],
+      "type": "object"
+    },
+    "Emitter": {
+      "additionalProperties": false,
+      "properties": {
+        "antenna": {
+          "$ref": "#/definitions/Antenna"
+        },
+        "bandwidth_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "center_frequency_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/KinematicState"
+        },
+        "tx_power_dbm": {
+          "format": "double",
+          "type": "number"
+        },
+        "waveform": {
+          "$ref": "#/definitions/Waveform"
+        }
+      },
+      "required": [
+        "antenna",
+        "bandwidth_hz",
+        "center_frequency_hz",
+        "id",
+        "state",
+        "tx_power_dbm",
+        "waveform"
+      ],
+      "type": "object"
+    },
+    "Environment": {
+      "additionalProperties": false,
+      "properties": {
+        "extra_loss_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "ground_reflection_coefficient": {
+          "format": "double",
+          "type": "number"
+        },
+        "temperature_k": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "extra_loss_db",
+        "ground_reflection_coefficient",
+        "temperature_k"
+      ],
+      "type": "object"
+    },
+    "IsacConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "array_elements": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "bandwidth_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "carrier_frequency_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "element_spacing_lambda": {
+          "format": "double",
+          "type": "number"
+        },
+        "noise_figure_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "rx_gain_dbi": {
+          "format": "double",
+          "type": "number"
+        },
+        "rx_pattern": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AntennaPatternModel"
+            }
+          ],
+          "default": {
+            "kind": "isotropic"
+          }
+        },
+        "subcarrier_spacing_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "symbols": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "system_loss_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "tx_gain_dbi": {
+          "format": "double",
+          "type": "number"
+        },
+        "tx_pattern": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AntennaPatternModel"
+            }
+          ],
+          "default": {
+            "kind": "isotropic"
+          }
+        },
+        "tx_power_dbm": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "array_elements",
+        "bandwidth_hz",
+        "carrier_frequency_hz",
+        "element_spacing_lambda",
+        "noise_figure_db",
+        "rx_gain_dbi",
+        "subcarrier_spacing_hz",
+        "symbols",
+        "system_loss_db",
+        "tx_gain_dbi",
+        "tx_power_dbm"
+      ],
+      "type": "object"
+    },
+    "KinematicState": {
+      "additionalProperties": false,
+      "properties": {
+        "pitch_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "position_enu_m": {
+          "$ref": "#/definitions/Vec3"
+        },
+        "roll_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "velocity_enu_mps": {
+          "$ref": "#/definitions/Vec3"
+        },
+        "yaw_deg": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pitch_deg",
+        "position_enu_m",
+        "roll_deg",
+        "velocity_enu_mps",
+        "yaw_deg"
+      ],
+      "type": "object"
+    },
+    "Origin": {
+      "additionalProperties": false,
+      "properties": {
+        "altitude_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "latitude_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "longitude_deg": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "altitude_m",
+        "latitude_deg",
+        "longitude_deg"
+      ],
+      "type": "object"
+    },
+    "PropagationModel": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "free_space"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "two_ray"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "k_factor_db": {
+              "format": "double",
+              "type": "number"
+            },
+            "kind": {
+              "enum": [
+                "rician"
+              ],
+              "type": "string"
+            },
+            "shadowing_std_db": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "k_factor_db",
+            "kind",
+            "shadowing_std_db"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RadarConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "array_elements": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "bandwidth_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "carrier_frequency_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "coherent_time_s": {
+          "format": "double",
+          "type": "number"
+        },
+        "element_spacing_lambda": {
+          "format": "double",
+          "type": "number"
+        },
+        "noise_figure_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "rx_gain_dbi": {
+          "format": "double",
+          "type": "number"
+        },
+        "rx_pattern": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AntennaPatternModel"
+            }
+          ],
+          "default": {
+            "kind": "isotropic"
+          }
+        },
+        "system_loss_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "tx_gain_dbi": {
+          "format": "double",
+          "type": "number"
+        },
+        "tx_pattern": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AntennaPatternModel"
+            }
+          ],
+          "default": {
+            "kind": "isotropic"
+          }
+        },
+        "tx_power_dbm": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "array_elements",
+        "bandwidth_hz",
+        "carrier_frequency_hz",
+        "coherent_time_s",
+        "element_spacing_lambda",
+        "noise_figure_db",
+        "rx_gain_dbi",
+        "system_loss_db",
+        "tx_gain_dbi",
+        "tx_power_dbm"
+      ],
+      "type": "object"
+    },
+    "Receiver": {
+      "additionalProperties": false,
+      "properties": {
+        "adc_bits": {
+          "format": "uint8",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "agc_target_rms": {
+          "format": "double",
+          "type": "number"
+        },
+        "antenna": {
+          "$ref": "#/definitions/Antenna"
+        },
+        "full_scale_v": {
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "iq_gain_imbalance_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "iq_phase_imbalance_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "noise_figure_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "oscillator_ppm": {
+          "format": "double",
+          "type": "number"
+        },
+        "phase_noise_rad_std": {
+          "format": "double",
+          "type": "number"
+        },
+        "sample_rate_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "state": {
+          "$ref": "#/definitions/KinematicState"
+        }
+      },
+      "required": [
+        "adc_bits",
+        "agc_target_rms",
+        "antenna",
+        "full_scale_v",
+        "id",
+        "iq_gain_imbalance_db",
+        "iq_phase_imbalance_deg",
+        "noise_figure_db",
+        "oscillator_ppm",
+        "phase_noise_rad_std",
+        "sample_rate_hz",
+        "state"
+      ],
+      "type": "object"
+    },
+    "SigintJob": {
+      "additionalProperties": false,
+      "properties": {
+        "emitter_id": {
+          "type": "string"
+        },
+        "receiver_id": {
+          "type": "string"
+        },
+        "samples": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "emitter_id",
+        "receiver_id",
+        "samples"
+      ],
+      "type": "object"
+    },
+    "Target": {
+      "additionalProperties": false,
+      "properties": {
+        "angular_rate_dps": {
+          "format": "float",
+          "type": "number"
+        },
+        "cooperative_identity": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CooperativeIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/TargetKind"
+        },
+        "rcs_m2": {
+          "format": "double",
+          "type": "number"
+        },
+        "rf_bandwidth_hz": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "rf_burstiness": {
+          "format": "float",
+          "type": "number"
+        },
+        "rf_center_frequency_hz": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "rf_tx_power_dbm": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "rotor_count": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "rotor_radius_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "rotor_rpm": {
+          "format": "double",
+          "type": "number"
+        },
+        "state": {
+          "$ref": "#/definitions/KinematicState"
+        }
+      },
+      "required": [
+        "angular_rate_dps",
+        "id",
+        "kind",
+        "rcs_m2",
+        "rf_burstiness",
+        "rotor_count",
+        "rotor_radius_m",
+        "rotor_rpm",
+        "state"
+      ],
+      "type": "object"
+    },
+    "TargetKind": {
+      "enum": [
+        "drone",
+        "bird",
+        "aircraft",
+        "ship",
+        "vehicle",
+        "other"
+      ],
+      "type": "string"
+    },
+    "Vec3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "format": "double",
+          "type": "number"
+        },
+        "y": {
+          "format": "double",
+          "type": "number"
+        },
+        "z": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "type": "object"
+    },
+    "Waveform": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "continuous_tone"
+              ],
+              "type": "string"
+            },
+            "offset_hz": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "offset_hz"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "duty_cycle": {
+              "format": "double",
+              "type": "number"
+            },
+            "kind": {
+              "enum": [
+                "pulse_train"
+              ],
+              "type": "string"
+            },
+            "offset_hz": {
+              "format": "double",
+              "type": "number"
+            },
+            "pulse_repetition_hz": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "duty_cycle",
+            "kind",
+            "offset_hz",
+            "pulse_repetition_hz"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "ofdm"
+              ],
+              "type": "string"
+            },
+            "subcarrier_spacing_hz": {
+              "format": "double",
+              "type": "number"
+            },
+            "subcarriers": {
+              "format": "uint",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "subcarrier_spacing_hz",
+            "subcarriers"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "cuas_job": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/CuasJob"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "emitters": {
+      "items": {
+        "$ref": "#/definitions/Emitter"
+      },
+      "type": "array"
+    },
+    "environment": {
+      "$ref": "#/definitions/Environment"
+    },
+    "origin": {
+      "$ref": "#/definitions/Origin"
+    },
+    "propagation": {
+      "$ref": "#/definitions/PropagationModel"
+    },
+    "receivers": {
+      "items": {
+        "$ref": "#/definitions/Receiver"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "seed": {
+      "format": "uint64",
+      "minimum": 0.0,
+      "type": "integer"
+    },
+    "sigint_job": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/SigintJob"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "targets": {
+      "items": {
+        "$ref": "#/definitions/Target"
+      },
+      "type": "array"
+    },
+    "timestamp_ms": {
+      "format": "uint64",
+      "minimum": 0.0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "emitters",
+    "environment",
+    "origin",
+    "propagation",
+    "receivers",
+    "schema_version",
+    "seed",
+    "targets",
+    "timestamp_ms"
+  ],
+  "title": "Scenario",
+  "type": "object"
+}

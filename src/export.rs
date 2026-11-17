@@ -6,6 +6,7 @@ use crate::{
     SigintSimulation, SimError, Target, TargetKind, Vec3,
 };
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PositionGeo {
@@ -14,6 +15,7 @@ pub struct PositionGeo {
     pub altitude_m: f64,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VelocityNed {
@@ -22,6 +24,7 @@ pub struct VelocityNed {
     pub down_mps: f64,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CandidateOut {
@@ -30,6 +33,7 @@ pub struct CandidateOut {
     pub velocity: VelocityNed,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CooperativeTrackOut {
@@ -41,6 +45,7 @@ pub struct CooperativeTrackOut {
     pub source_confidence: f32,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReferenceSensorMeasurementsOut {
@@ -57,6 +62,7 @@ pub struct ReferenceSensorMeasurementsOut {
     pub angular_rate_dps: f32,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RecordedSensorFrameOut {
@@ -66,6 +72,7 @@ pub struct RecordedSensorFrameOut {
     pub measurements: ReferenceSensorMeasurementsOut,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "source_type", rename_all = "snake_case")]
 pub enum GoldenCuasSourceOut {
@@ -73,6 +80,7 @@ pub enum GoldenCuasSourceOut {
     IsacRecorded { input: GoldenIsacRecordedInputOut },
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GoldenIsacRecordedInputOut {
@@ -86,6 +94,7 @@ pub struct GoldenIsacRecordedInputOut {
     pub features: Vec<f32>,
 }
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GoldenCuasScenarioOut {

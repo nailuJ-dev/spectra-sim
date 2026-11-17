@@ -6,6 +6,7 @@ use crate::{
     SPEED_OF_LIGHT_MPS,
 };
 
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IsacMeasurement {

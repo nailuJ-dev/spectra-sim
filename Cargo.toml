@@ -25,6 +25,12 @@ thiserror = "2"
 sgp4 = "=2.4.0"
 sofars = "=0.6.1"
 quick-xml = "=0.41.0"
+clap = { version = "4", features = ["derive"] }
+schemars = { version = "0.8", optional = true }
+
+[features]
+default = ["schema"]
+schema = ["dep:schemars"]
 
 [profile.release]
 lto = "thin"

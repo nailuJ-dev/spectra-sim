@@ -1,8 +1,10 @@
 #![forbid(unsafe_code)]
 #![deny(missing_debug_implementations)]
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod error;
 pub mod export;
+pub mod formats;
 pub mod interfaces;
 pub mod isac;
 pub mod layers;
@@ -12,11 +14,15 @@ pub mod physics;
 pub mod radar;
 pub mod randomization;
 pub mod replay;
+pub mod report;
 pub mod rf;
 pub mod rng;
+#[cfg(feature = "schema")]
+pub mod schema;
 pub mod simulator;
 pub mod space;
 pub mod validity;
+pub mod viz;
 pub mod water;
 pub mod world;
 
@@ -34,8 +40,11 @@ pub use physics::*;
 pub use radar::*;
 pub use randomization::*;
 pub use replay::*;
+pub use report::*;
 pub use rf::*;
 pub use rng::*;
+#[cfg(feature = "schema")]
+pub use schema::{cuas_run_schema, scenario_schema, sigint_run_schema};
 pub use simulator::*;
 pub use space::*;
 pub use validity::*;

@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "IqCaptureOut": {
+      "additionalProperties": false,
+      "properties": {
+        "adc_bits": {
+          "description": "ADC resolution used by the quantizer.",
+          "format": "uint8",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "center_frequency_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "full_scale_v": {
+          "description": "ADC full-scale voltage represented by a normalized sample magnitude of 1.",
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "sample_rate_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "samples": {
+          "items": {
+            "$ref": "#/definitions/IqSampleOut"
+          },
+          "type": "array"
+        },
+        "timestamp_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "adc_bits",
+        "center_frequency_hz",
+        "full_scale_v",
+        "id",
+        "sample_rate_hz",
+        "samples",
+        "timestamp_ms"
+      ],
+      "type": "object"
+    },
+    "IqSampleOut": {
+      "additionalProperties": false,
+      "properties": {
+        "i": {
+          "format": "float",
+          "type": "number"
+        },
+        "q": {
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "i",
+        "q"
+      ],
+      "type": "object"
+    },
+    "ReplayManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "output_schema_version": {
+          "default": "unversioned",
+          "type": "string"
+        },
+        "output_sha256": {
+          "type": "string"
+        },
+        "scenario_sha256": {
+          "type": "string"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "seed": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "simulator_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "output_sha256",
+        "scenario_sha256",
+        "schema_version",
+        "seed",
+        "simulator_version"
+      ],
+      "type": "object"
+    },
+    "SigintSimulation": {
+      "additionalProperties": false,
+      "properties": {
+        "capture": {
+          "$ref": "#/definitions/IqCaptureOut"
+        },
+        "truth": {
+          "$ref": "#/definitions/SigintTruth"
+        }
+      },
+      "required": [
+        "capture",
+        "truth"
+      ],
+      "type": "object"
+    },
+    "SigintTruth": {
+      "additionalProperties": false,
+      "properties": {
+        "clipped_sample_fraction": {
+          "description": "Fraction of generated complex samples for which either component reached or exceeded the normalized ADC rail before quantization.",
+          "format": "float",
+          "type": "number"
+        },
+        "distance_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "doppler_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "emitter_id": {
+          "type": "string"
+        },
+        "oscillator_offset_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "path_loss_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "radial_velocity_mps": {
+          "format": "double",
+          "type": "number"
+        },
+        "received_power_dbm": {
+          "format": "double",
+          "type": "number"
+        },
+        "receiver_id": {
+          "type": "string"
+        },
+        "rx_effective_gain_dbi": {
+          "format": "double",
+          "type": "number"
+        },
+        "seed": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "snr_db": {
+          "format": "double",
+          "type": "number"
+        },
+        "thermal_noise_dbm": {
+          "format": "double",
+          "type": "number"
+        },
+        "tx_effective_gain_dbi": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "clipped_sample_fraction",
+        "distance_m",
+        "doppler_hz",
+        "emitter_id",
+        "oscillator_offset_hz",
+        "path_loss_db",
+        "radial_velocity_mps",
+        "received_power_dbm",
+        "receiver_id",
+        "rx_effective_gain_dbi",
+        "seed",
+        "snr_db",
+        "thermal_noise_dbm",
+        "tx_effective_gain_dbi"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "manifest": {
+      "$ref": "#/definitions/ReplayManifest"
+    },
+    "simulation": {
+      "$ref": "#/definitions/SigintSimulation"
+    }
+  },
+  "required": [
+    "manifest",
+    "simulation"
+  ],
+  "title": "SigintRun",
+  "type": "object"
+}

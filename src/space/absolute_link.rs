@@ -87,6 +87,50 @@ pub fn solve_absolute_one_way_link(
     })
 }
 
+/// Doppler rate (time derivative of the one-way Doppler shift) in Hz/s.
+///
+/// Computed by a central difference
+/// `(doppler(t + h) - doppler(t - h)) / (2h)` with `h = step_s`, where each
+/// Doppler value comes from [`solve_absolute_one_way_link`] at
+/// `receive_epoch +/- h`, i.e. from the same light-time-corrected geometry
+/// and sign convention as [`AbsoluteSpaceLinkGeometry::doppler_hz`]. The
+/// truncation error is O(h^2). Choosing `h` too small amplifies
+/// floating-point noise (the difference of two nearly equal values is divided
+/// by `2h`); 0.1 to 1 s is a reasonable range for LEO geometries.
+///
+/// `step_s` must be finite and positive; the remaining arguments are validated
+/// by the link solver.
+#[allow(clippy::too_many_arguments)] // mirrors the link solver arguments plus the step
+pub fn doppler_rate_hz_per_s(
+    tx: &AbsoluteEphemeris,
+    rx: &AbsoluteEphemeris,
+    receive_epoch: AbsoluteEpoch,
+    carrier_frequency_hz: f64,
+    max_iterations: usize,
+    tolerance_s: f64,
+    eop: Option<&EopSample>,
+    step_s: f64,
+) -> Result<f64> {
+    if !step_s.is_finite() || step_s <= 0.0 {
+        return Err(SimError::InvalidArgument(
+            "Doppler rate step must be finite and positive".into(),
+        ));
+    }
+    let doppler_at = |offset_s: f64| -> Result<f64> {
+        Ok(solve_absolute_one_way_link(
+            tx,
+            rx,
+            receive_epoch.shift_si_seconds(offset_s, eop)?,
+            carrier_frequency_hz,
+            max_iterations,
+            tolerance_s,
+            eop,
+        )?
+        .doppler_hz)
+    };
+    Ok((doppler_at(step_s)? - doppler_at(-step_s)?) / (2.0 * step_s))
+}
+
 fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
