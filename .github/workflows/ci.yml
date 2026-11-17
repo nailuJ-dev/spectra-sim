@@ -78,3 +78,83 @@ jobs:
           java-version: "17"
           cache: maven
       - run: mvn -q -B -f orekit-sidecar/pom.xml package
+
+  # Advisory until 0.5.0 is tagged. The crate is not published on crates.io, so
+  # there is no registry baseline; compare against the merged 0.4.1 release
+  # commit instead. Once v0.5.0 exists, move baseline-rev to that tag and drop
+  # continue-on-error. Needs full git history (so the baseline rev exists) and
+  # therefore keeps the default persisted checkout credentials.
+  # cargo-semver-checks needs a recent rustc (>= 1.93), so this job overrides
+  # the repo's rust-toolchain.toml pin (1.85) with stable via RUSTUP_TOOLCHAIN.
+  # It currently reports the intended 0.5.0 break (ReplayManifest gained
+  # output_schema_version).
+  semver:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          baseline-rev: 897dfd9
+
+  # Measured line coverage of the root crate (cargo llvm-cov --all-features):
+  # 78.36% of lines (6704 lines, 1451 missed). Gate = floor(78.36) - 2 = 76;
+  # raise it when coverage grows. A single invocation both enforces the gate
+  # and writes lcov.info, which is uploaded as an artifact.
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - run: cargo llvm-cov --all-features --fail-under-lines 76 --lcov --output-path lcov.info
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lcov
+          path: lcov.info
+          if-no-files-found: ignore
+
+  # Weekly (schedule only): short fuzz run of every parser target on nightly.
+  # RUSTUP_TOOLCHAIN overrides the repo's rust-toolchain.toml pin (1.85), since
+  # cargo-fuzz needs nightly-only compiler flags.
+  fuzz-smoke:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: nightly
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [tle, omm_json, omm_kvn, omm_xml, oem_kvn, oem_xml, ocm_kvn, ocm_xml, eop_finals, eop_c04, scenario_json]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      - run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=30 -timeout=10 -rss_limit_mb=2048 -max_len=65536
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-artifacts-${{ matrix.target }}
+          path: fuzz/artifacts/**
+          if-no-files-found: ignore

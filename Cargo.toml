@@ -11,6 +11,7 @@ categories = ["simulation", "science"]
 
 [workspace]
 members = ["bindings/python"]
+exclude = ["fuzz"]
 
 [lib]
 name = "spectra_sim"

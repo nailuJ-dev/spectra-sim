@@ -8,3 +8,7 @@ __pycache__/
 orekit-sidecar/target/
 *.so
 .venv-bindings/
+/fuzz/target/
+/fuzz/artifacts/
+lcov.info
+*.profraw

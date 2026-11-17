@@ -1,0 +1,5 @@
+<oem><body><segment>
+<metadata><OBJECT_NAME>SAT-A</OBJECT_NAME><OBJECT_ID>2026-001A</OBJECT_ID><CENTER_NAME>EARTH</CENTER_NAME><REF_FRAME>GCRF</REF_FRAME><TIME_SYSTEM>UTC</TIME_SYSTEM></metadata>
+<data>
+<stateVector><EPOCH>2026-09-02T00:00:00</EPOCH><X units="m">7000000</X><Y units="m">0</Y><Z units="m">0</Z><X_DOT units="m/s">0</X_DOT><Y_DOT units="m/s">7500</Y_DOT><Z_DOT units="m/s">0</Z_DOT></stateVector>
+</data></segment></body></oem>
