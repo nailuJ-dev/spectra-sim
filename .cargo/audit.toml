@@ -1,0 +1,9 @@
+# cargo-audit configuration (read automatically from .cargo/audit.toml).
+[advisories]
+ignore = [
+    # chrono 0.4.45 is flagged "unmaintained" (informational advisory, not a vulnerability).
+    # It is a mandatory dependency of sgp4 =2.4.0, the latest sgp4 release: there is no
+    # upgrade path and no feature flag removes it. Revisit when sgp4 drops or replaces
+    # chrono. Keep this entry in sync with deny.toml. Approved by the maintainer.
+    "RUSTSEC-2026-0543",
+]

@@ -15,7 +15,7 @@ cargo audit --deny warnings
 python3 -m py_compile adapters/gazebo/state_snapshot_to_scenario.py adapters/sionna_rt/export_cir.py adapters/sionna_rt/simulate_iq_from_cir.py adapters/5g_lena/trace_to_isac_config.py tools/reference_check.py
 ```
 
-`cargo install cargo-deny cargo-audit --locked` provides the two supply-chain tools. `cargo audit --deny warnings` currently fails on the open advisory RUSTSEC-2026-0543 (unmaintained `chrono` via `sgp4`); plain `cargo audit` and the CI `supply-chain` job report it as a warning only. See `docs/RELEASE_GATES.md`.
+`cargo install cargo-deny cargo-audit --locked` provides the two supply-chain tools. The only ignored advisory is RUSTSEC-2026-0543 (unmaintained `chrono`, mandatory via `sgp4`), recorded with its rationale in `.cargo/audit.toml` and `deny.toml`; see `docs/RELEASE_GATES.md`.
 
 ## Fuzzing
 

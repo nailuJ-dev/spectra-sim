@@ -20,7 +20,7 @@ cargo deny check
 
 `scripts/release_check.sh` runs both. The CI `supply-chain` job runs `cargo-deny-action` and `rustsec/audit-check` without deny-warnings (`deny.toml` has `unmaintained = "workspace"`), so it reports warnings but does not fail on them.
 
-Known open item: RUSTSEC-2026-0543 (`chrono` 0.4.45 unmaintained, pulled in by `sgp4 =2.4.0`) is reported as a warning. The CI job stays green, but `cargo audit --deny warnings` (and therefore `scripts/release_check.sh`) fails. The maintainer decision (bump `sgp4`, or record a documented advisory ignore) is still open; do not tag a release through `scripts/release_check.sh` until it is made.
+Documented exception (maintainer-approved): RUSTSEC-2026-0543 (`chrono` 0.4.45 unmaintained; informational, not a vulnerability) is ignored in `.cargo/audit.toml` and `deny.toml` because `chrono` is a mandatory dependency of `sgp4 =2.4.0` (the latest release) with no upgrade path. Keep the two entries in sync and revisit when `sgp4` drops or replaces `chrono`; any other advisory still fails `cargo audit --deny warnings`.
 
 The release tree must not contain private registries, path dependencies outside the repository, or mandatory network services.
 

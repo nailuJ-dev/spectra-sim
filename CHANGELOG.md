@@ -65,7 +65,7 @@
 
 ### Notes
 - Output hashes are unchanged from 0.4.1: the same scenario and seed produce the same `output_sha256`. The `output_hash_is_unchanged` test in `tests/sdk_contracts.rs` pins this. The manifest's `simulator_version` changes to `0.5.0`, but it is not part of `output_sha256`.
-- Supply-chain status: RUSTSEC-2026-0543 (`chrono` 0.4.45 is flagged as unmaintained; it is pulled in by `sgp4 =2.4.0`) is open. `cargo audit` reports it as an allowed warning, and the CI `supply-chain` job (`cargo-deny-action` and `rustsec/audit-check`, without deny-warnings; `deny.toml` has `unmaintained = "workspace"`) stays green. `cargo audit --deny warnings`, and therefore `scripts/release_check.sh`, fails. The maintainer decision (bump `sgp4`, or add a documented advisory ignore) is still open; do not tag a release through `scripts/release_check.sh` until it is made. No advisory has been ignored and `sgp4` has not been changed.
+- Supply-chain status: RUSTSEC-2026-0543 (`chrono` 0.4.45 flagged *unmaintained*, an informational advisory and not a vulnerability) is a mandatory dependency of `sgp4 =2.4.0`, already the latest `sgp4` release, so there is no upgrade path and no feature flag removes it. It is explicitly ignored (maintainer-approved), with the rationale in `.cargo/audit.toml` and `deny.toml`, which must stay in sync. `cargo audit --deny warnings` and `scripts/release_check.sh` pass on this point; any other advisory still fails. Revisit when `sgp4` drops or replaces `chrono`.
 - The Docker image and release binaries are produced by `release.yml` only once a tag is pushed; none are published by this change.
 
 ## 0.4.1
