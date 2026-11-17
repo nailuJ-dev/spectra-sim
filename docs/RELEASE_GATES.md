@@ -30,7 +30,7 @@ Besides the checks above, `.github/workflows/ci.yml` runs:
 
 | Job | Gate |
 | --- | --- |
-| `python-bindings` | `maturin develop -m bindings/python/Cargo.toml` and `pytest bindings/python/tests` |
+| `python-bindings` | `maturin develop --locked -m bindings/python/Cargo.toml` and `pytest bindings/python/tests` |
 | `orekit-sidecar` | `mvn -q -B -f orekit-sidecar/pom.xml package` |
 | `coverage` | `cargo llvm-cov --all-features --fail-under-lines 76` (line-coverage floor of the root crate; raise it when coverage grows) |
 | `semver` | `cargo-semver-checks` against the baseline commit named in the job. Advisory (`continue-on-error`) until 0.5.0 is tagged; afterwards move `baseline-rev` to the tag and make it blocking |
