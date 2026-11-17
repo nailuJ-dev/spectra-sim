@@ -1,0 +1,12 @@
+# Keep the build context small and free of local state.
+# NOTE: do NOT ignore Cargo.toml, Cargo.lock, src/, examples/ (include_str!) or
+# bindings/python/{Cargo.toml,src} (cargo needs the whole workspace to load).
+target
+.git
+artifacts
+.superpowers
+orekit-sidecar/target
+bindings/python/target
+**/__pycache__
+**/.venv*
+**/*.so

@@ -5,6 +5,10 @@ COPY . .
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim
+# Static OCI labels; version/revision/created are added at build time by
+# docker/metadata-action in the release workflow.
+LABEL org.opencontainers.image.source="https://github.com/nailuJ-dev/spectra-sim" \
+      org.opencontainers.image.licenses="Apache-2.0 OR MIT"
 RUN useradd --create-home --uid 10001 spectra
 COPY --from=build /src/target/release/spectra-sim /usr/local/bin/spectra-sim
 USER spectra
