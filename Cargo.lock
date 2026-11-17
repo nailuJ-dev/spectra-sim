@@ -497,9 +497,9 @@ dependencies = [
 
 [[package]]
 name = "sofars"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d30f9231a5523c34c7607376fd3ab7bf1fd8ea03d68893a335fd63decc0e05f6"
+checksum = "d22c969bc4a6b2f5049b8dec2ead6e608b7edd62f0d8e709a1846680a294ae7a"
 
 [[package]]
 name = "spectra-sim"
