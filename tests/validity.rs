@@ -119,19 +119,90 @@ mod report_tests {
             assert!(
                 scope[0]
                     .message
-                    .contains("only the propagation model is assessed"),
+                    .contains("models are catalogued from the scenario configuration"),
                 "{}",
                 scope[0].message
             );
-            let report = validity_report_markdown(&ledger);
-            assert!(
-                report.contains(
-                    "- warning — scope: only the propagation model is assessed; radar, ISAC, \
-                     antenna-pattern and receiver models are not catalogued in this report"
-                ),
-                "{report}"
-            );
         }
+    }
+
+    fn names(ledger: &ValidityLedger) -> Vec<&str> {
+        ledger.models().iter().map(|m| m.name.as_str()).collect()
+    }
+
+    fn maturity(ledger: &ValidityLedger, name: &str) -> ModelMaturity {
+        ledger
+            .models()
+            .iter()
+            .find(|m| m.name == name)
+            .unwrap_or_else(|| panic!("model {name} missing: {:?}", names(ledger)))
+            .maturity
+    }
+
+    #[test]
+    fn sigint_ledger_catalogues_waveform_receiver_and_antennas() {
+        let ledger = scenario_validity_ledger(&scenario());
+        let names = names(&ledger);
+        for expected in ["thermal_noise_ktb", "receiver_impairments"] {
+            assert!(names.contains(&expected), "{names:?}");
+        }
+        assert!(
+            names.iter().any(|n| n.starts_with("waveform_")),
+            "{names:?}"
+        );
+        assert!(names.iter().any(|n| n.starts_with("antenna_")), "{names:?}");
+        assert_eq!(
+            maturity(&ledger, "receiver_impairments"),
+            ModelMaturity::ValidatedWithWarnings
+        );
+        assert!(ledger.issues().iter().any(|i| i.component == "receiver"));
+        // No CUAS job, so no radar models.
+        assert!(!names.contains(&"monostatic_radar_equation"), "{names:?}");
+    }
+
+    #[test]
+    fn cuas_ledger_catalogues_radar_isac_and_flags_micro_doppler() {
+        let text = std::fs::read_to_string("examples/scenarios/cuas_drone_isac.json").unwrap();
+        let scenario: Scenario = serde_json::from_str(&text).unwrap();
+        let ledger = scenario_validity_ledger(&scenario);
+        let names = names(&ledger);
+        for expected in [
+            "monostatic_radar_equation",
+            "rcs_constant",
+            "array_angle_resolution",
+            "micro_doppler_index",
+            "ofdm_isac_resolution",
+        ] {
+            assert!(names.contains(&expected), "{names:?}");
+        }
+        assert_eq!(
+            maturity(&ledger, "micro_doppler_index"),
+            ModelMaturity::ExperimentalResearch
+        );
+        assert_eq!(ledger.quality(), PhysicsQuality::Experimental);
+        // Receiver chain belongs to SIGINT jobs only.
+        assert!(!names.contains(&"receiver_impairments"), "{names:?}");
+    }
+
+    #[test]
+    fn cuas_ledger_without_rotors_has_no_micro_doppler_model() {
+        let text = std::fs::read_to_string("examples/scenarios/cuas_bird.json").unwrap();
+        let scenario: Scenario = serde_json::from_str(&text).unwrap();
+        let ledger = scenario_validity_ledger(&scenario);
+        assert!(!names(&ledger).contains(&"micro_doppler_index"));
+        assert_ne!(ledger.quality(), PhysicsQuality::Experimental);
+    }
+
+    #[test]
+    fn models_are_catalogued_once() {
+        let text = std::fs::read_to_string("examples/scenarios/cuas_drone_isac.json").unwrap();
+        let scenario: Scenario = serde_json::from_str(&text).unwrap();
+        let ledger = scenario_validity_ledger(&scenario);
+        let mut all = names(&ledger);
+        let before = all.len();
+        all.sort_unstable();
+        all.dedup();
+        assert_eq!(all.len(), before, "{all:?}");
     }
 
     #[test]
@@ -156,21 +227,24 @@ mod report_tests {
         let mut scenario = scenario();
         scenario.propagation = PropagationModel::FreeSpace;
         let free = scenario_validity_ledger(&scenario);
-        assert_eq!(free.models().len(), 1);
         assert_eq!(free.models()[0].name, "free_space");
-        assert_eq!(free.models()[0].maturity, ModelMaturity::ValidatedReference);
-        // Only the always-on synthetic-data and scope warnings apply.
-        assert_eq!(free.issues().len(), 2);
-        assert_eq!(free.quality(), PhysicsQuality::ValidatedWithWarnings);
+        assert_eq!(
+            maturity(&free, "free_space"),
+            ModelMaturity::ValidatedReference
+        );
+        assert!(!free.issues().iter().any(|i| i.component == "propagation"));
 
         scenario.propagation = PropagationModel::TwoRay;
         let two_ray = scenario_validity_ledger(&scenario);
         assert_eq!(two_ray.models()[0].name, "two_ray");
         assert_eq!(
-            two_ray.models()[0].maturity,
+            maturity(&two_ray, "two_ray"),
             ModelMaturity::ValidatedWithWarnings
         );
-        assert_eq!(two_ray.quality(), PhysicsQuality::ValidatedWithWarnings);
+        assert!(two_ray
+            .issues()
+            .iter()
+            .any(|i| i.component == "propagation"));
         assert!(two_ray.issues().len() > free.issues().len());
 
         scenario.propagation = PropagationModel::Rician {
