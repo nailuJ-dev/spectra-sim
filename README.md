@@ -59,14 +59,30 @@ print(spectra_sim.verify_replay(scenario, result.manifest_json, "sigint"))   # "
 
 ### Models and validation status
 
-Each `sigint` / `cuas` run also writes `validity_report.md`. Its scope is the propagation model only, and it always states that the data is synthetic and not field-validated (see [`docs/VALIDATION.md`](docs/VALIDATION.md) for the validation ladder).
+Each `sigint` / `cuas` run also writes `validity_report.md`. It lists, once each, every model the scenario's jobs exercise, with a maturity label, its reference and its caveats, and always states that the data is synthetic and not field-validated (see [`docs/VALIDATION.md`](docs/VALIDATION.md) for the validation ladder). Maturity labels describe documented model assumptions, not measurement campaigns.
 
-| Model | Status in the validity report | Basis |
-| --- | --- | --- |
-| `free_space` propagation | validated reference | closed-form Friis equation |
-| `two_ray` propagation | validated with warnings | idealised, not calibrated against measurements |
-| `rician` propagation | validated with warnings | idealised statistical model, not calibrated against measurements |
-| radar, ISAC, antenna-pattern and receiver models | not yet catalogued in the validity report | no entry in the report |
+| Model | Used by | Status in the validity report | Basis / caveat |
+| --- | --- | --- | --- |
+| `free_space` propagation | all jobs | validated reference | closed-form Friis equation |
+| `two_ray`, `rician` propagation | all jobs | validated with warnings | idealised, not calibrated against measurements |
+| waveform synthesis (tone, pulse train, OFDM) | SIGINT | validated reference | analytic complex baseband |
+| `thermal_noise_ktb` | SIGINT | validated reference | kTB with noise figure |
+| `receiver_impairments` | SIGINT | validated with warnings | behavioural CFO, phase noise, IQ imbalance, AGC, ADC; not calibrated against hardware |
+| antenna patterns | all jobs | isotropic: validated reference; Gaussian, elliptical, tabulated: validated with warnings | analytic main-lobe approximations / user-supplied tables |
+| `monostatic_radar_equation`, `array_angle_resolution` | C-UAS | validated reference | closed form |
+| `rcs_constant` | C-UAS | validated with warnings | no Swerling fluctuation, no aspect dependence |
+| `micro_doppler_index` | C-UAS with rotor targets | experimental research | heuristic normalisation; makes the overall quality `EXPERIMENTAL` |
+| `ofdm_isac_resolution` | C-UAS with ISAC | validated reference | c/2B and c/(2Δf) relations |
+
+### Satellite pass prediction
+
+`spectra-sim space-pass <config.json>` propagates a TLE with SGP4 and writes `pass.json` (azimuth, elevation, range, range rate, one-way Doppler, Doppler rate and light time on a fixed time grid, plus the visibility windows above the station's elevation mask), `elevation.svg` and `doppler.svg`:
+
+```bash
+spectra-sim space-pass examples/space/vanguard1_pass.json --out out/pass
+```
+
+The config names the TLE, the ground station (WGS-84 latitude, longitude, height, elevation mask), `start_utc`, `duration_s`, `step_s` (at most 100000 samples), `carrier_frequency_hz` and an EOP file (`finals2000a` or `c04_20u24`, path relative to the config); `spectra-sim schema pass-config` and `schema pass-result` print the JSON Schemas of the config and of `pass.json`. The observables are **light-time corrected**: the transmit epoch is solved iteratively and the geometry is evaluated in the quasi-inertial TEME frame, so the Earth's rotation during the signal flight (Sagnac) is included; the result agrees with the library's generic `solve_absolute_one_way_link` (GCRF ephemerides) to under 1 m in range and 0.05 Hz in Doppler on the example. Nothing is downloaded: the example ships a four-day excerpt of the official IERS EOP 20 C04 series (`examples/space/eop_c04_2000-06.txt`, with its source); for other dates point `eop.path` at the full IERS `eopc04` or `finals2000A` file.
 
 ## What's new in 0.5.0
 
@@ -74,7 +90,8 @@ Command-line `validate`, `examples`, `replay`, `sweep`, `plot` and `schema`; `.n
 
 ### Known limitations
 
-* The validity report covers the selected propagation model and a synthetic-data notice only; radar, ISAC, antenna and receiver models are not catalogued yet.
+* The validity report's maturity labels are judgment calls based on each model's documented assumptions; no model has been calibrated against field measurements.
+* `space-pass` reads the EOP file you provide and downloads nothing; its Doppler is first order (no relativistic terms) and SGP4 accuracy limits the absolute geometry.
 * Release binaries are built on GitHub's `ubuntu-latest`, `macos-latest` (Apple silicon, so no Intel macOS binary) and `windows-latest` runners; the Linux binary links the runner's glibc.
 * The `sigint-run` / `cuas-run` JSON Schemas describe in-memory run results, not a single file written by the CLI.
 * The Python package is not published to PyPI; build it from source (see above).

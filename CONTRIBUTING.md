@@ -58,6 +58,8 @@ VIRTUAL_ENV=$PWD/.venv-bindings .venv-bindings/bin/maturin develop --locked -m b
 cargo run -q -- schema scenario > schemas/scenario.schema.json
 cargo run -q -- schema sigint-run > schemas/sigint_run.schema.json
 cargo run -q -- schema cuas-run > schemas/cuas_run.schema.json
+cargo run -q -- schema pass-config > schemas/pass_config.schema.json
+cargo run -q -- schema pass-result > schemas/pass_result.schema.json
 ```
 
 ## Releasing

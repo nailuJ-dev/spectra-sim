@@ -6,6 +6,7 @@ mod plot_cmd;
 mod replay_cmd;
 #[cfg(feature = "schema")]
 mod schema_cmd;
+mod space_pass;
 mod sweep;
 mod validate;
 
@@ -154,6 +155,14 @@ enum Command {
         #[arg(long, default_value_t = 256)]
         fft: usize,
     },
+    /// Predict a ground-station pass from a TLE: az/el, range, Doppler and Doppler rate.
+    SpacePass {
+        /// Path to the pass config JSON (TLE, ground station, time grid, carrier, EOP file).
+        config: PathBuf,
+        /// Output directory.
+        #[arg(long, default_value = "artifacts/space-pass")]
+        out: PathBuf,
+    },
     /// List or print the example scenarios embedded in this binary.
     Examples {
         #[command(subcommand)]
@@ -246,6 +255,7 @@ fn dispatch(command: Command) -> Result<()> {
             force,
         ),
         Command::Plot { capture, out, fft } => plot_cmd::run(&capture, &out, fft),
+        Command::SpacePass { config, out } => space_pass::run(&config, &out),
         Command::Examples { action } => match action {
             ExamplesAction::List => examples::run_list(),
             ExamplesAction::Show { name } => examples::run_show(&name),

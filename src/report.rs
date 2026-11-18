@@ -1,11 +1,13 @@
 //! Human-readable Markdown rendering of a [`ValidityLedger`].
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use crate::validity::{
     ModelMaturity, PhysicsQuality, ValidityIssue, ValidityLedger, ValiditySeverity,
 };
-use crate::world::{PropagationModel, Scenario};
+use crate::world::{PropagationModel, Scenario, Waveform};
+use crate::AntennaPatternModel;
 
 fn quality_label(quality: PhysicsQuality) -> &'static str {
     match quality {
@@ -108,49 +110,212 @@ pub fn validity_report_markdown(ledger: &ValidityLedger) -> String {
 }
 
 /// Builds the validity ledger implied by a scenario's selected models.
+///
+/// Every model that the scenario's jobs actually exercise is catalogued once:
+/// the propagation model, and for a SIGINT job the emitter waveform, the
+/// receiver noise/impairment chain and both antenna patterns; for a CUAS job
+/// the radar equation, the target RCS model, the micro-Doppler index (when the
+/// target has rotors), the ISAC resolution relations (when ISAC is enabled)
+/// and every configured radar/ISAC antenna pattern. Maturity labels describe
+/// the documented assumptions of each model, not a measurement campaign; the
+/// always-on `dataset` warning says so.
 pub fn scenario_validity_ledger(scenario: &Scenario) -> ValidityLedger {
-    let mut ledger = ValidityLedger::default();
-    match scenario.propagation {
-        PropagationModel::FreeSpace => ledger.record_model(
-            "free_space",
-            "1",
-            "Friis transmission equation (closed form)",
-            ModelMaturity::ValidatedReference,
-        ),
-        PropagationModel::TwoRay => {
-            ledger.record_model(
-                "two_ray",
-                "1",
-                "Two-ray ground-reflection model",
-                ModelMaturity::ValidatedWithWarnings,
-            );
-            ledger.push(idealised_propagation_warning());
+    let mut catalog = Catalog::default();
+    catalog.propagation(scenario.propagation);
+
+    if let Some(job) = &scenario.sigint_job {
+        if let Ok(emitter) = scenario.emitter(&job.emitter_id) {
+            catalog.waveform(&emitter.waveform);
+            catalog.antenna(&emitter.antenna.pattern);
         }
-        PropagationModel::Rician { .. } => {
-            ledger.record_model(
-                "rician",
-                "1",
-                "Rician fading with log-normal shadowing",
-                ModelMaturity::ValidatedWithWarnings,
-            );
-            ledger.push(idealised_propagation_warning());
+        if let Ok(receiver) = scenario.receiver(&job.receiver_id) {
+            catalog.receiver_chain();
+            catalog.antenna(&receiver.antenna.pattern);
         }
     }
+
+    if let Some(job) = &scenario.cuas_job {
+        catalog.model(
+            "monostatic_radar_equation",
+            "Classical monostatic radar equation (R^4 spreading)",
+            ModelMaturity::ValidatedReference,
+            None,
+        );
+        catalog.model(
+            "rcs_constant",
+            "Constant radar cross-section per target",
+            ModelMaturity::ValidatedWithWarnings,
+            Some(ValidityIssue::warning(
+                "radar",
+                "RCS is constant per target: no Swerling fluctuation and no aspect dependence",
+            )),
+        );
+        catalog.model(
+            "array_angle_resolution",
+            "Uniform linear array aperture resolution, asin(lambda / aperture)",
+            ModelMaturity::ValidatedReference,
+            None,
+        );
+        catalog.antenna(&job.radar.tx_pattern);
+        catalog.antenna(&job.radar.rx_pattern);
+        if let Ok(target) = scenario.target(&job.target_id) {
+            if target.rotor_count > 0 {
+                catalog.model(
+                    "micro_doppler_index",
+                    "Heuristic rotor micro-Doppler index (tip-velocity span, saturating normalisation)",
+                    ModelMaturity::ExperimentalResearch,
+                    None,
+                );
+            }
+        }
+        if let Some(isac) = &job.isac {
+            catalog.model(
+                "ofdm_isac_resolution",
+                "OFDM sensing relations: c/2B range resolution, c/(2 delta_f) unambiguous range",
+                ModelMaturity::ValidatedReference,
+                None,
+            );
+            catalog.antenna(&isac.tx_pattern);
+            catalog.antenna(&isac.rx_pattern);
+        }
+    }
+
+    let mut ledger = catalog.ledger;
     ledger.push(ValidityIssue::warning(
         "dataset",
         "synthetic data: not field-validated",
     ));
     ledger.push(ValidityIssue::warning(
         "scope",
-        "only the propagation model is assessed; radar, ISAC, antenna-pattern and receiver \
-         models are not catalogued in this report",
+        "models are catalogued from the scenario configuration; maturity reflects documented \
+         model assumptions, not measurement campaigns; material and layered-media models carry \
+         their own ledgers (MaterialProperties::validity) and are not listed here",
     ));
     ledger
+}
+
+#[derive(Default)]
+struct Catalog {
+    ledger: ValidityLedger,
+    seen: BTreeSet<&'static str>,
+}
+
+impl Catalog {
+    fn model(
+        &mut self,
+        name: &'static str,
+        reference: &'static str,
+        maturity: ModelMaturity,
+        caveat: Option<ValidityIssue>,
+    ) {
+        if !self.seen.insert(name) {
+            return;
+        }
+        self.ledger.record_model(name, "1", reference, maturity);
+        if let Some(issue) = caveat {
+            self.ledger.push(issue);
+        }
+    }
+
+    fn propagation(&mut self, propagation: PropagationModel) {
+        match propagation {
+            PropagationModel::FreeSpace => self.model(
+                "free_space",
+                "Friis transmission equation (closed form)",
+                ModelMaturity::ValidatedReference,
+                None,
+            ),
+            PropagationModel::TwoRay => self.model(
+                "two_ray",
+                "Two-ray ground-reflection model",
+                ModelMaturity::ValidatedWithWarnings,
+                Some(idealised_propagation_warning()),
+            ),
+            PropagationModel::Rician { .. } => self.model(
+                "rician",
+                "Rician fading with log-normal shadowing",
+                ModelMaturity::ValidatedWithWarnings,
+                Some(idealised_propagation_warning()),
+            ),
+        }
+    }
+
+    fn waveform(&mut self, waveform: &Waveform) {
+        let name = match waveform {
+            Waveform::ContinuousTone { .. } => "waveform_continuous_tone",
+            Waveform::PulseTrain { .. } => "waveform_pulse_train",
+            Waveform::Ofdm { .. } => "waveform_ofdm",
+        };
+        self.model(
+            name,
+            "Analytic complex-baseband synthesis",
+            ModelMaturity::ValidatedReference,
+            None,
+        );
+    }
+
+    fn receiver_chain(&mut self) {
+        self.model(
+            "thermal_noise_ktb",
+            "kTB thermal noise with receiver noise figure",
+            ModelMaturity::ValidatedReference,
+            None,
+        );
+        self.model(
+            "receiver_impairments",
+            "Behavioural CFO (oscillator ppm), random-walk phase noise, IQ gain/phase imbalance, \
+             RMS-targeted AGC and uniform ADC quantisation",
+            ModelMaturity::ValidatedWithWarnings,
+            Some(ValidityIssue::warning(
+                "receiver",
+                "behavioural impairment models; not calibrated against measured hardware",
+            )),
+        );
+    }
+
+    fn antenna(&mut self, pattern: &AntennaPatternModel) {
+        match pattern {
+            AntennaPatternModel::Isotropic => self.model(
+                "antenna_isotropic",
+                "Isotropic radiator (boresight gain applied in every direction)",
+                ModelMaturity::ValidatedReference,
+                None,
+            ),
+            AntennaPatternModel::Gaussian { .. } => self.model(
+                "antenna_gaussian",
+                "Gaussian main-lobe approximation with a gain floor",
+                ModelMaturity::ValidatedWithWarnings,
+                Some(main_lobe_warning()),
+            ),
+            AntennaPatternModel::EllipticalGaussian { .. } => self.model(
+                "antenna_elliptical_gaussian",
+                "Elliptical Gaussian main-lobe approximation with a gain floor",
+                ModelMaturity::ValidatedWithWarnings,
+                Some(main_lobe_warning()),
+            ),
+            AntennaPatternModel::TabulatedRelative { .. } => self.model(
+                "antenna_tabulated",
+                "User-supplied relative gain table interpolated in off-axis angle",
+                ModelMaturity::ValidatedWithWarnings,
+                Some(ValidityIssue::warning(
+                    "antenna",
+                    "pattern accuracy is limited by the supplied samples",
+                )),
+            ),
+        }
+    }
 }
 
 fn idealised_propagation_warning() -> ValidityIssue {
     ValidityIssue::warning(
         "propagation",
         "idealised statistical/geometric model; not calibrated against measurements",
+    )
+}
+
+fn main_lobe_warning() -> ValidityIssue {
+    ValidityIssue::warning(
+        "antenna",
+        "analytic main-lobe approximation; sidelobe structure is replaced by a gain floor",
     )
 }

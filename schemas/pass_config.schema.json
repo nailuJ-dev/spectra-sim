@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "EopFormat": {
+      "description": "Format of the Earth-orientation-parameter file.",
+      "oneOf": [
+        {
+          "description": "USNO/IERS `finals2000A.*` fixed-width Bulletin A files.",
+          "enum": [
+            "finals2000a"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "IERS EOP 20u24 C04 whitespace files.",
+          "enum": [
+            "c04_20u24"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "PassEopInput": {
+      "additionalProperties": false,
+      "description": "Reference to the EOP file the caller must provide; nothing is downloaded.",
+      "properties": {
+        "format": {
+          "$ref": "#/definitions/EopFormat"
+        },
+        "path": {
+          "description": "Path to the EOP file; relative paths are resolved against the config file.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "path"
+      ],
+      "type": "object"
+    },
+    "PassStationInput": {
+      "additionalProperties": false,
+      "description": "Geodetic (WGS-84) location of the ground station.",
+      "properties": {
+        "height_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "latitude_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "longitude_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "minimum_elevation_deg": {
+          "default": 0.0,
+          "description": "Elevation mask: samples below it are reported as not visible.",
+          "format": "double",
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "height_m",
+        "latitude_deg",
+        "longitude_deg",
+        "name"
+      ],
+      "type": "object"
+    },
+    "PassTleInput": {
+      "additionalProperties": false,
+      "description": "Two-line element set of the satellite.",
+      "properties": {
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": "string"
+        },
+        "object_name": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "line1",
+        "line2"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "Input of a pass computation (`spectra-sim space-pass <config.json>`).",
+  "properties": {
+    "carrier_frequency_hz": {
+      "format": "double",
+      "type": "number"
+    },
+    "duration_s": {
+      "format": "double",
+      "type": "number"
+    },
+    "eop": {
+      "$ref": "#/definitions/PassEopInput"
+    },
+    "ground_station": {
+      "$ref": "#/definitions/PassStationInput"
+    },
+    "start_utc": {
+      "description": "UTC start epoch, `YYYY-MM-DDThh:mm:ss[.fff][Z]`.",
+      "type": "string"
+    },
+    "step_s": {
+      "format": "double",
+      "type": "number"
+    },
+    "tle": {
+      "$ref": "#/definitions/PassTleInput"
+    }
+  },
+  "required": [
+    "carrier_frequency_hz",
+    "duration_s",
+    "eop",
+    "ground_station",
+    "start_utc",
+    "step_s",
+    "tle"
+  ],
+  "title": "PassConfig",
+  "type": "object"
+}

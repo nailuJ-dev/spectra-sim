@@ -43,6 +43,7 @@ fn help_lists_subcommands() {
         "replay",
         "sweep",
         "plot",
+        "space-pass",
         "examples",
     ] {
         assert!(stdout.contains(name), "missing {name} in stdout={stdout}");
@@ -869,7 +870,7 @@ fn assert_validity_report(path: &std::path::Path, model_name: &str) {
     assert!(report.contains("# Physics validity report"), "{report}");
     assert!(report.contains("synthetic data"), "{report}");
     assert!(
-        report.contains("only the propagation model is assessed"),
+        report.contains("models are catalogued from the scenario configuration"),
         "{report}"
     );
     let row = report
