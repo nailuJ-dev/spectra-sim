@@ -129,7 +129,7 @@ jobs:
         with:
           tool: cargo-llvm-cov
       - run: cargo llvm-cov --all-features --fail-under-lines 76 --lcov --output-path lcov.info
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: lcov
@@ -160,7 +160,7 @@ jobs:
         with:
           tool: cargo-fuzz
       - run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=30 -timeout=10 -rss_limit_mb=2048 -max_len=65536
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: fuzz-artifacts-${{ matrix.target }}
