@@ -133,7 +133,7 @@ jobs:
           $line = "$hash  $($env:ASSET).zip`n"
           [System.IO.File]::WriteAllText((Join-Path (Get-Location) "$zip.sha256"), $line, (New-Object System.Text.UTF8Encoding($false)))
           Get-Content "$zip.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: binaries-${{ matrix.label }}
           path: dist/*
@@ -168,7 +168,7 @@ jobs:
           jar_name="$(basename "${jars[0]}")"
           sha256sum "${jar_name}" > "${jar_name}.sha256"
           cat "${jar_name}.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sidecar
           path: dist/*
