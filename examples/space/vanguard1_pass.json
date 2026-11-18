@@ -1,0 +1,22 @@
+{
+  "tle": {
+    "object_name": "VANGUARD 1",
+    "line1": "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753",
+    "line2": "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667"
+  },
+  "ground_station": {
+    "name": "Los Angeles",
+    "latitude_deg": 34.05,
+    "longitude_deg": -118.25,
+    "height_m": 50.0,
+    "minimum_elevation_deg": 10.0
+  },
+  "start_utc": "2000-06-27T19:00:00Z",
+  "duration_s": 21600.0,
+  "step_s": 30.0,
+  "carrier_frequency_hz": 108000000.0,
+  "eop": {
+    "format": "c04_20u24",
+    "path": "eop_illustrative_c04.txt"
+  }
+}

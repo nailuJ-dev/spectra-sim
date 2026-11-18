@@ -1,3 +1,11 @@
+## Unreleased
+
+### Added
+- `spectra-sim space-pass <config.json>`: SGP4 + EOP (TEME→ITRF) ground-station pass prediction with azimuth, elevation, range, range rate, one-way Doppler and Doppler rate, visibility windows, `pass.json`, `elevation.svg` and `doppler.svg`. Library API: `PassConfig`, `compute_pass`, `parse_eop`, `visibility_windows`, `pass_sample_count` (at most 100000 samples). Instantaneous geometry (no light-time correction). Example: `examples/space/vanguard1_pass.json` with illustrative (non-IERS) EOP values.
+
+### Changed
+- The validity report now catalogues every model a scenario's jobs exercise: waveform synthesis, kTB noise, receiver impairments, antenna patterns, monostatic radar equation, constant RCS, array angle resolution, micro-Doppler index (experimental, so C-UAS runs with rotor targets report `EXPERIMENTAL`) and OFDM ISAC relations. The `scope` warning text changed accordingly.
+
 ## 0.5.0
 
 ### Added

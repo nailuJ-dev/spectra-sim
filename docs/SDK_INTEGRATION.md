@@ -95,3 +95,7 @@ Every JSON input the CLI reads (scenario, randomization config, replay manifest,
 
 Exit code 3 is new in 0.5.0; earlier versions exited with 2 for I/O errors as well.
 
+
+## Satellite pass prediction (`space-pass`)
+
+`spectra-sim space-pass <config.json> --out DIR` reads a `PassConfig` (TLE, ground station, `start_utc`, `duration_s`, `step_s`, `carrier_frequency_hz`, `eop {format, path}`) and writes `pass.json` (`PassResult`, `schema_version` `spectra-sim-pass-v1`), `elevation.svg` and `doppler.svg`. Samples carry `t_s`, `azimuth_deg`, `elevation_deg`, `range_m`, `range_rate_m_per_s`, `doppler_hz` (one-way, `-range_rate * f / c`), `doppler_rate_hz_per_s` (central difference, ±0.5 s) and `visible`; `windows` lists contiguous visible runs at sample resolution. The geometry is instantaneous: no light-time or Sagnac correction. EOP must cover the whole time grid; epochs outside the table are rejected, not extrapolated. Exit codes follow the table above (missing EOP file: 3; invalid config: 2).

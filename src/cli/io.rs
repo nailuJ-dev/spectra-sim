@@ -34,6 +34,14 @@ fn read_bounded(path: &Path) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+/// Reads a bounded UTF-8 text file; invalid UTF-8 is an input error naming the file.
+pub fn read_text(path: &Path) -> Result<String> {
+    let bytes = read_bounded(path)?;
+    String::from_utf8(bytes).map_err(|_| {
+        SimError::InvalidArgument(format!("{}: file is not valid UTF-8", path.display()))
+    })
+}
+
 /// Parses JSON bytes read from `path`; errors name the file.
 fn parse_json<T: DeserializeOwned>(bytes: &[u8], path: &Path) -> Result<T> {
     serde_json::from_slice(bytes).map_err(|error| {
