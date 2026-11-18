@@ -76,13 +76,13 @@ Each `sigint` / `cuas` run also writes `validity_report.md`. It lists, once each
 
 ### Satellite pass prediction
 
-`spectra-sim space-pass <config.json>` propagates a TLE with SGP4, rotates it to ITRF with Earth-orientation parameters, and writes `pass.json` (azimuth, elevation, range, range rate, one-way Doppler and Doppler rate on a fixed time grid, plus the visibility windows above the station's elevation mask), `elevation.svg` and `doppler.svg`:
+`spectra-sim space-pass <config.json>` propagates a TLE with SGP4 and writes `pass.json` (azimuth, elevation, range, range rate, one-way Doppler, Doppler rate and light time on a fixed time grid, plus the visibility windows above the station's elevation mask), `elevation.svg` and `doppler.svg`:
 
 ```bash
 spectra-sim space-pass examples/space/vanguard1_pass.json --out out/pass
 ```
 
-The config names the TLE, the ground station (WGS-84 latitude, longitude, height, elevation mask), `start_utc`, `duration_s`, `step_s` (at most 100000 samples), `carrier_frequency_hz` and an EOP file (`finals2000a` or `c04_20u24`, path relative to the config). Nothing is downloaded: the bundled `examples/space/eop_illustrative_c04.txt` holds **illustrative, non-IERS** values so the example runs offline; use an official IERS file for real work. The geometry is instantaneous (no light-time correction, an error of a few Hz of Doppler on an S-band LEO pass); for light-time-corrected observables use `solve_absolute_one_way_link` and `doppler_rate_hz_per_s` from the library.
+The config names the TLE, the ground station (WGS-84 latitude, longitude, height, elevation mask), `start_utc`, `duration_s`, `step_s` (at most 100000 samples), `carrier_frequency_hz` and an EOP file (`finals2000a` or `c04_20u24`, path relative to the config); `spectra-sim schema pass-config` and `schema pass-result` print the JSON Schemas of the config and of `pass.json`. The observables are **light-time corrected**: the transmit epoch is solved iteratively and the geometry is evaluated in the quasi-inertial TEME frame, so the Earth's rotation during the signal flight (Sagnac) is included; the result agrees with the library's generic `solve_absolute_one_way_link` (GCRF ephemerides) to under 1 m in range and 0.05 Hz in Doppler on the example. Nothing is downloaded: the example ships a four-day excerpt of the official IERS EOP 20 C04 series (`examples/space/eop_c04_2000-06.txt`, with its source); for other dates point `eop.path` at the full IERS `eopc04` or `finals2000A` file.
 
 ## What's new in 0.5.0
 
@@ -91,7 +91,7 @@ Command-line `validate`, `examples`, `replay`, `sweep`, `plot` and `schema`; `.n
 ### Known limitations
 
 * The validity report's maturity labels are judgment calls based on each model's documented assumptions; no model has been calibrated against field measurements.
-* `space-pass` uses instantaneous geometry and reads EOP data you provide; it has no light-time correction and downloads nothing.
+* `space-pass` reads the EOP file you provide and downloads nothing; its Doppler is first order (no relativistic terms) and SGP4 accuracy limits the absolute geometry.
 * Release binaries are built on GitHub's `ubuntu-latest`, `macos-latest` (Apple silicon, so no Intel macOS binary) and `windows-latest` runners; the Linux binary links the runner's glibc.
 * The `sigint-run` / `cuas-run` JSON Schemas describe in-memory run results, not a single file written by the CLI.
 * The Python package is not published to PyPI; build it from source (see above).

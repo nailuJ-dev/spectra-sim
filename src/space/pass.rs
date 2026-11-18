@@ -5,19 +5,25 @@
 //! station-relative azimuth, elevation, slant range, range rate, one-way
 //! Doppler and Doppler rate on a fixed time grid.
 //!
-//! The geometry is **instantaneous**: the satellite position is taken at the
-//! receive epoch, without light-time or Sagnac correction. The resulting
-//! Doppler error is of the order of |Doppler rate| x light-time, i.e. a few Hz
-//! for an S-band LEO pass. Use [`crate::solve_absolute_one_way_link`] with
-//! tabulated ephemerides when light-time-corrected observables are required.
+//! The geometry is **light-time corrected** and computed in the SGP4 output
+//! frame TEME, which is quasi-inertial over the few milliseconds of signal
+//! flight (its precession/nutation drift over 0.1 s is below 1e-12 rad): for
+//! each receive epoch `t` the transmit epoch `t - tau` is found by
+//! iterating `tau = |r_station(t) - r_sat(t - tau)| / c`, which also accounts
+//! for the Earth's rotation during the signal flight (Sagnac). The range rate
+//! is `(v_station(t) - v_sat(t - tau)) . u`, `u` being the unit vector from the
+//! satellite to the station; the one-way Doppler is `-range_rate * f / c`
+//! (first order, no relativistic terms), the same convention as
+//! [`crate::solve_absolute_one_way_link`]. Azimuth and elevation are the
+//! apparent (light-time corrected) direction in the station frame.
 
 use serde::{Deserialize, Serialize};
 
 use crate::{Result, SimError};
 
 use super::{
-    ground_station_az_el_range, transform_absolute_state, AbsoluteEpoch, EopTable,
-    GeodeticPosition, GroundStation, ReferenceFrame, Sgp4Propagator, TimeScale, Tle,
+    ground_station_az_el_range, transform_absolute_state, AbsoluteEpoch, AbsoluteOrbitState,
+    EopTable, GeodeticPosition, GroundStation, ReferenceFrame, Sgp4Propagator, TimeScale, Tle,
     SPEED_OF_LIGHT_M_PER_S,
 };
 
@@ -105,6 +111,8 @@ pub struct PassSample {
     pub range_rate_m_per_s: f64,
     pub doppler_hz: f64,
     pub doppler_rate_hz_per_s: f64,
+    /// One-way signal flight time from the satellite to the station.
+    pub light_time_s: f64,
     pub visible: bool,
 }
 
@@ -133,7 +141,7 @@ pub struct PassResult {
     pub step_s: f64,
     pub carrier_frequency_hz: f64,
     pub eop_source: String,
-    /// Always `"instantaneous"` (no light-time correction), see module docs.
+    /// Always `"light_time_corrected"`, see module docs.
     pub geometry: String,
     pub samples: Vec<PassSample>,
     pub windows: Vec<PassWindow>,
@@ -216,6 +224,7 @@ pub fn compute_pass(config: &PassConfig, eop: &EopTable) -> Result<PassResult> {
             range_rate_m_per_s: now.range_rate_m_per_s,
             doppler_hz: doppler,
             doppler_rate_hz_per_s: doppler_rate,
+            light_time_s: now.light_time_s,
             visible: now.visible,
         });
     }
@@ -228,7 +237,7 @@ pub fn compute_pass(config: &PassConfig, eop: &EopTable) -> Result<PassResult> {
         step_s: config.step_s,
         carrier_frequency_hz: f,
         eop_source: eop.source_label().into(),
-        geometry: "instantaneous".into(),
+        geometry: "light_time_corrected".into(),
         samples,
         windows,
     })
@@ -274,36 +283,91 @@ struct Geometry {
     elevation_rad: f64,
     range_m: f64,
     range_rate_m_per_s: f64,
+    light_time_s: f64,
     visible: bool,
 }
+
+/// Convergence tolerance of the light-time iteration (seconds).
+const LIGHT_TIME_TOLERANCE_S: f64 = 1e-12;
+/// Iteration cap of the light-time solution; LEO to GEO converge in < 6.
+const LIGHT_TIME_MAX_ITERATIONS: usize = 20;
 
 fn geometry(
     propagator: &Sgp4Propagator,
     station: &GroundStation,
     eop: &EopTable,
-    epoch: AbsoluteEpoch,
+    receive_epoch: AbsoluteEpoch,
 ) -> Result<Geometry> {
-    let sample = eop.sample_at(epoch)?;
-    let teme = propagator.propagate(epoch)?;
-    let itrf = transform_absolute_state(&teme, ReferenceFrame::Itrf, &sample)?;
-    let aer = ground_station_az_el_range(station, itrf.position_m)?;
-    let origin = station.ecef_m();
-    let los = [
-        (itrf.position_m[0] - origin[0]) / aer.range_m,
-        (itrf.position_m[1] - origin[1]) / aer.range_m,
-        (itrf.position_m[2] - origin[2]) / aer.range_m,
-    ];
-    // The station is fixed in ITRF, so the ITRF satellite velocity is the
-    // relative velocity.
-    let v = itrf.velocity_m_per_s;
-    let range_rate = v[0].mul_add(los[0], v[1].mul_add(los[1], v[2] * los[2]));
+    let rx_eop = eop.sample_at(receive_epoch)?;
+    let station_itrf = AbsoluteOrbitState::new(
+        receive_epoch,
+        ReferenceFrame::Itrf,
+        station.ecef_m(),
+        [0.0; 3],
+    )?;
+    // Station state in TEME at receive time, including the Earth-rotation velocity.
+    let station_teme = transform_absolute_state(&station_itrf, ReferenceFrame::Teme, &rx_eop)?;
+
+    let mut light_time = 0.0_f64;
+    let mut satellite = None;
+    for _ in 0..LIGHT_TIME_MAX_ITERATIONS {
+        let transmit_epoch = receive_epoch.shift_si_seconds(-light_time, None)?;
+        let teme = propagator.propagate(transmit_epoch)?;
+        let next = norm(sub(station_teme.position_m, teme.position_m)) / SPEED_OF_LIGHT_M_PER_S;
+        let converged = (next - light_time).abs() <= LIGHT_TIME_TOLERANCE_S;
+        light_time = next;
+        if converged {
+            satellite = Some(teme);
+            break;
+        }
+    }
+    let satellite = satellite.ok_or_else(|| {
+        SimError::InvalidArgument("pass light-time iteration did not converge".into())
+    })?;
+
+    let delta = sub(station_teme.position_m, satellite.position_m);
+    let range = norm(delta);
+    if range <= f64::EPSILON {
+        return Err(SimError::InvalidArgument(
+            "satellite coincides with ground station".into(),
+        ));
+    }
+    let los = [delta[0] / range, delta[1] / range, delta[2] / range];
+    let range_rate = dot(
+        sub(station_teme.velocity_m_per_s, satellite.velocity_m_per_s),
+        los,
+    );
+
+    // Apparent direction: where the station sees the signal come from, i.e.
+    // the transmit-time satellite position rotated into ITRF at receive time.
+    let apparent = AbsoluteOrbitState::new(
+        receive_epoch,
+        ReferenceFrame::Teme,
+        satellite.position_m,
+        satellite.velocity_m_per_s,
+    )?;
+    let apparent_itrf = transform_absolute_state(&apparent, ReferenceFrame::Itrf, &rx_eop)?;
+    let aer = ground_station_az_el_range(station, apparent_itrf.position_m)?;
     Ok(Geometry {
         azimuth_rad: aer.azimuth_rad,
         elevation_rad: aer.elevation_rad,
-        range_m: aer.range_m,
+        range_m: range,
         range_rate_m_per_s: range_rate,
+        light_time_s: light_time,
         visible: aer.visible,
     })
+}
+
+fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0].mul_add(b[0], a[1].mul_add(b[1], a[2] * b[2]))
+}
+
+fn norm(a: [f64; 3]) -> f64 {
+    dot(a, a).sqrt()
 }
 
 fn doppler_hz(range_rate_m_per_s: f64, carrier_frequency_hz: f64) -> f64 {

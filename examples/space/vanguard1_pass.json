@@ -17,6 +17,6 @@
   "carrier_frequency_hz": 108000000.0,
   "eop": {
     "format": "c04_20u24",
-    "path": "eop_illustrative_c04.txt"
+    "path": "eop_c04_2000-06.txt"
   }
 }

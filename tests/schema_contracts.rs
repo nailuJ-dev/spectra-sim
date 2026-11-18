@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use serde_json::Value;
-use spectra_sim::{cuas_run_schema, scenario_schema, sigint_run_schema};
+use spectra_sim::{
+    cuas_run_schema, pass_config_schema, pass_result_schema, scenario_schema, sigint_run_schema,
+};
 
 fn repo_path(relative: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(relative)
@@ -33,6 +35,31 @@ fn committed_schemas_are_current() {
         read_json("schemas/cuas_run.schema.json"),
         "regenerate with: cargo run -q -- schema cuas-run > schemas/cuas_run.schema.json"
     );
+    assert_eq!(
+        pass_config_schema(),
+        read_json("schemas/pass_config.schema.json"),
+        "regenerate with: cargo run -q -- schema pass-config > schemas/pass_config.schema.json"
+    );
+    assert_eq!(
+        pass_result_schema(),
+        read_json("schemas/pass_result.schema.json"),
+        "regenerate with: cargo run -q -- schema pass-result > schemas/pass_result.schema.json"
+    );
+}
+
+#[test]
+fn example_pass_config_matches_schema() {
+    let schema = pass_config_schema();
+    let config = read_json("examples/space/vanguard1_pass.json");
+    let properties = schema["properties"].as_object().expect("properties");
+    for key in config.as_object().expect("object").keys() {
+        assert!(properties.contains_key(key), "undeclared key {key}");
+    }
+    for required in schema["required"].as_array().expect("required") {
+        let key = required.as_str().expect("string");
+        assert!(config.get(key).is_some(), "missing required key {key}");
+    }
+    assert_eq!(schema["additionalProperties"], Value::Bool(false));
 }
 
 #[test]

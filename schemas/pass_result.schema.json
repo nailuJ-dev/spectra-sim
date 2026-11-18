@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "PassSample": {
+      "additionalProperties": false,
+      "description": "One time sample of the pass.",
+      "properties": {
+        "azimuth_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "doppler_hz": {
+          "format": "double",
+          "type": "number"
+        },
+        "doppler_rate_hz_per_s": {
+          "format": "double",
+          "type": "number"
+        },
+        "elevation_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "light_time_s": {
+          "description": "One-way signal flight time from the satellite to the station.",
+          "format": "double",
+          "type": "number"
+        },
+        "range_m": {
+          "format": "double",
+          "type": "number"
+        },
+        "range_rate_m_per_s": {
+          "format": "double",
+          "type": "number"
+        },
+        "t_s": {
+          "description": "Seconds since `start_utc` (SI seconds).",
+          "format": "double",
+          "type": "number"
+        },
+        "visible": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "azimuth_deg",
+        "doppler_hz",
+        "doppler_rate_hz_per_s",
+        "elevation_deg",
+        "light_time_s",
+        "range_m",
+        "range_rate_m_per_s",
+        "t_s",
+        "visible"
+      ],
+      "type": "object"
+    },
+    "PassWindow": {
+      "additionalProperties": false,
+      "description": "A contiguous run of visible samples.",
+      "properties": {
+        "end_s": {
+          "description": "Time of the last visible sample.",
+          "format": "double",
+          "type": "number"
+        },
+        "max_elevation_deg": {
+          "format": "double",
+          "type": "number"
+        },
+        "max_elevation_t_s": {
+          "format": "double",
+          "type": "number"
+        },
+        "start_s": {
+          "description": "Time of the first visible sample (sample resolution, not interpolated).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "end_s",
+        "max_elevation_deg",
+        "max_elevation_t_s",
+        "start_s"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "Output of [`compute_pass`].",
+  "properties": {
+    "carrier_frequency_hz": {
+      "format": "double",
+      "type": "number"
+    },
+    "eop_source": {
+      "type": "string"
+    },
+    "geometry": {
+      "description": "Always `\"light_time_corrected\"`, see module docs.",
+      "type": "string"
+    },
+    "object_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "samples": {
+      "items": {
+        "$ref": "#/definitions/PassSample"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "start_utc": {
+      "type": "string"
+    },
+    "station": {
+      "type": "string"
+    },
+    "step_s": {
+      "format": "double",
+      "type": "number"
+    },
+    "windows": {
+      "items": {
+        "$ref": "#/definitions/PassWindow"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "carrier_frequency_hz",
+    "eop_source",
+    "geometry",
+    "samples",
+    "schema_version",
+    "start_utc",
+    "station",
+    "step_s",
+    "windows"
+  ],
+  "title": "PassResult",
+  "type": "object"
+}

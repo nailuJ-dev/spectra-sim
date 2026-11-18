@@ -44,7 +44,9 @@ pub use report::*;
 pub use rf::*;
 pub use rng::*;
 #[cfg(feature = "schema")]
-pub use schema::{cuas_run_schema, scenario_schema, sigint_run_schema};
+pub use schema::{
+    cuas_run_schema, pass_config_schema, pass_result_schema, scenario_schema, sigint_run_schema,
+};
 pub use simulator::*;
 pub use space::*;
 pub use validity::*;

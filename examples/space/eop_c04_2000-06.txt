@@ -1,0 +1,14 @@
+# Excerpt (2000-06-26 .. 2000-06-29) of the official IERS EOP 20 C04 series, unmodified rows.
+# Source: IERS Earth Orientation Centre, Paris Observatory, https://hpiers.obspm.fr/iers/eop/eopc04/eopc04.1962-now
+# Retrieved via the astropy-iers-data 0.2026.11.16.0.37.44 package (PyPI), which mirrors that file.
+# Used by examples/space/vanguard1_pass.json. For other dates use the full IERS file.
+# EARTH ORIENTATION PARAMETER (EOP) PRODUCT CENTER CENTER (PARIS OBSERVATORY) - INTERNATIONAL EARTH ROTATION AND REFERENCE SYSTEMS SERVICE  
+# EOP (IERS) 20 C04 TIME SERIES  consistent with ITRF 2020 - sampled at 0h UTC     
+# Description: https://hpiers.obspm.fr/eoppc/eop/eopc04/readme        Contact: christian.bizouard@obspm.fr                              
+# Reference Precession-Nutation Model: IAU 2000
+# format(4(i4),f10.2,2(f12.6),f12.7,2(f12.6),2(f12.6),f12.7,2(f12.6),f12.7,2(f12.6),2(f12.6),f12.7)
+# YR  MM  DD  HH       MJD        x(")        y(")  UT1-UTC(s)       dX(")       dY(")  xrt("/day)  yrt("/day)      LOD(s)        x Er        y Er  UT1-UTC Er       dX Er       dY Er      xrt Er      yrt Er      LOD Er
+2000   6  26   0  51721.00    0.108610    0.286834   0.2057678   -0.000134    0.000335    0.000496   -0.001241   0.0003870    0.000073    0.000058   0.0000462    0.000100    0.000085    0.000200    0.000246   0.0000234
+2000   6  27   0  51722.00    0.109043    0.285471   0.2053382   -0.000101    0.000210    0.000646   -0.001284   0.0004596    0.000073    0.000058   0.0000373    0.000097    0.000082    0.000199    0.000246   0.0000235
+2000   6  28   0  51723.00    0.109610    0.284156   0.2048634   -0.000064    0.000064    0.000800   -0.001095   0.0004579    0.000073    0.000058   0.0000276    0.000096    0.000081    0.000200    0.000248   0.0000237
+2000   6  29   0  51724.00    0.110142    0.283024   0.2044586   -0.000017    0.000013    0.000498   -0.000982   0.0003373    0.000073    0.000058   0.0000298    0.000096    0.000081    0.000200    0.000249   0.0000243

@@ -1,9 +1,0 @@
-# ILLUSTRATIVE Earth-orientation parameters in the IERS EOP 20u24 C04 column layout.
-# These values are NOT IERS data: they are round numbers of realistic magnitude, provided
-# only so that examples/space/vanguard1_pass.json runs offline. For real work download the
-# official C04 or finals2000A file from the IERS and point the config's "eop.path" at it.
-# YR MM DD HH   MJD        x(")     y(")    UT1-UTC(s)  dX(")    dY(")    xrt  yrt  LOD(s)
-2000 06 26 0  51721.0   0.1000   0.4000   0.3550     0.0000   0.0000   0    0    0.0006
-2000 06 27 0  51722.0   0.1010   0.4010   0.3544     0.0000   0.0000   0    0    0.0006
-2000 06 28 0  51723.0   0.1020   0.4020   0.3538     0.0000   0.0000   0    0    0.0006
-2000 06 29 0  51724.0   0.1030   0.4030   0.3532     0.0000   0.0000   0    0    0.0006

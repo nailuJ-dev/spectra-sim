@@ -2,8 +2,11 @@ use std::path::Path;
 use std::process::Command;
 
 use spectra_sim::{
-    compute_pass, parse_eop, pass_sample_count, visibility_windows, EopFormat, EopTable,
-    PassConfig, PassSample, SimError, MAX_PASS_SAMPLES, SPEED_OF_LIGHT_M_PER_S,
+    compute_pass, parse_eop, pass_sample_count, solve_absolute_one_way_link,
+    transform_absolute_state, visibility_windows, AbsoluteEphemeris, AbsoluteEpoch,
+    AbsoluteOrbitState, EopFormat, EopTable, GeodeticPosition, GroundStation, PassConfig,
+    PassSample, ReferenceFrame, Sgp4Propagator, SimError, TimeScale, Tle, MAX_PASS_SAMPLES,
+    SPEED_OF_LIGHT_M_PER_S,
 };
 
 const EXAMPLE: &str = "examples/space/vanguard1_pass.json";
@@ -23,7 +26,7 @@ fn example_pass_has_three_windows_over_los_angeles() {
     let result = compute_pass(&config, &eop).unwrap();
     assert_eq!(result.samples.len(), 721);
     assert_eq!(result.windows.len(), 3, "{:?}", result.windows);
-    assert_eq!(result.geometry, "instantaneous");
+    assert_eq!(result.geometry, "light_time_corrected");
     for window in &result.windows {
         assert!(window.start_s <= window.max_elevation_t_s);
         assert!(window.max_elevation_t_s <= window.end_s);
@@ -151,6 +154,7 @@ fn visibility_windows_group_contiguous_samples() {
         range_rate_m_per_s: 0.0,
         doppler_hz: 0.0,
         doppler_rate_hz_per_s: 0.0,
+        light_time_s: 0.0,
         visible,
     };
     let samples = vec![
@@ -218,7 +222,7 @@ fn cli_space_pass_missing_eop_file_exits_3() {
     std::fs::create_dir_all(&dir).unwrap();
     let text = std::fs::read_to_string(EXAMPLE)
         .unwrap()
-        .replace("eop_illustrative_c04.txt", "missing_eop.txt");
+        .replace("eop_c04_2000-06.txt", "missing_eop.txt");
     let config = dir.join("pass.json");
     std::fs::write(&config, text).unwrap();
     let output = run_cli(&[
@@ -243,10 +247,10 @@ fn cli_space_pass_invalid_config_exits_2() {
     std::fs::write(&config, text).unwrap();
     // Point the EOP path back at the example file so only step_s is wrong.
     let text = std::fs::read_to_string(&config).unwrap().replace(
-        "\"eop_illustrative_c04.txt\"",
+        "\"eop_c04_2000-06.txt\"",
         &format!(
             "{:?}",
-            std::fs::canonicalize("examples/space/eop_illustrative_c04.txt").unwrap()
+            std::fs::canonicalize("examples/space/eop_c04_2000-06.txt").unwrap()
         ),
     );
     std::fs::write(&config, text).unwrap();
@@ -260,4 +264,90 @@ fn cli_space_pass_invalid_config_exits_2() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("step_s"));
     assert!(!dir.join("out").exists());
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn light_time_equals_range_over_c() {
+    let (config, eop) = example();
+    let result = compute_pass(&config, &eop).unwrap();
+    for sample in &result.samples {
+        let expected = sample.range_m / SPEED_OF_LIGHT_M_PER_S;
+        assert!((sample.light_time_s - expected).abs() < 1e-11, "{sample:?}");
+    }
+}
+
+/// Independent cross-check: the same light-time-corrected observable computed
+/// by the library's generic one-way link solver from GCRF ephemerides.
+#[test]
+fn matches_generic_one_way_link_solver() {
+    let (config, eop) = example();
+    let result = compute_pass(&config, &eop).unwrap();
+    let tle = Tle::parse(
+        config.tle.object_name.clone(),
+        &config.tle.line1,
+        &config.tle.line2,
+    )
+    .unwrap();
+    let propagator = Sgp4Propagator::from_tle(&tle).unwrap();
+    let station = GroundStation::new(
+        "st",
+        GeodeticPosition {
+            latitude_rad: config.ground_station.latitude_deg.to_radians(),
+            longitude_rad: config.ground_station.longitude_deg.to_radians(),
+            height_m: config.ground_station.height_m,
+        },
+        0.0,
+    )
+    .unwrap();
+    let start = AbsoluteEpoch::parse_ccsds(&config.start_utc, TimeScale::Utc).unwrap();
+
+    // Check a few samples inside the first visibility window.
+    let window = &result.windows[0];
+    let picks: Vec<&PassSample> = result
+        .samples
+        .iter()
+        .filter(|s| s.t_s >= window.start_s && s.t_s <= window.end_s)
+        .step_by(10)
+        .collect();
+    assert!(picks.len() >= 3);
+    for sample in picks {
+        let receive = start.shift_si_seconds(sample.t_s, None).unwrap();
+        let mut sat_states = Vec::new();
+        let mut sta_states = Vec::new();
+        for k in -40..=5 {
+            let epoch = receive.shift_si_seconds(f64::from(k) * 0.5, None).unwrap();
+            let e = eop.sample_at(epoch).unwrap();
+            let teme = propagator.propagate(epoch).unwrap();
+            sat_states.push(transform_absolute_state(&teme, ReferenceFrame::Gcrf, &e).unwrap());
+            let itrf =
+                AbsoluteOrbitState::new(epoch, ReferenceFrame::Itrf, station.ecef_m(), [0.0; 3])
+                    .unwrap();
+            sta_states.push(transform_absolute_state(&itrf, ReferenceFrame::Gcrf, &e).unwrap());
+        }
+        let tx = AbsoluteEphemeris::new(sat_states).unwrap();
+        let rx = AbsoluteEphemeris::new(sta_states).unwrap();
+        let link = solve_absolute_one_way_link(
+            &tx,
+            &rx,
+            receive,
+            config.carrier_frequency_hz,
+            20,
+            1e-12,
+            None,
+        )
+        .unwrap();
+        assert!(
+            (link.slant_range_m - sample.range_m).abs() < 1.0,
+            "range {} vs {}",
+            link.slant_range_m,
+            sample.range_m
+        );
+        assert!(
+            (link.doppler_hz - sample.doppler_hz).abs() < 0.05,
+            "doppler {} vs {}",
+            link.doppler_hz,
+            sample.doppler_hz
+        );
+        assert!((link.light_time_s - sample.light_time_s).abs() < 1e-8);
+    }
 }
